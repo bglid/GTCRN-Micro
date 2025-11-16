@@ -6,4 +6,4 @@ set -euo pipefail
 
 cd ./python
 
-uv run utils/eval_metrics.py
+uv run -m gtcrn_micro.utils.torch_converter

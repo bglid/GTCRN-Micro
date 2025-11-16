@@ -3,7 +3,15 @@ import ai_edge_torch
 import soundfile as sf
 
 # from models.gtcrn.gtcrn import GTCRN
-from models.GTCRN_micro import GTCRN_micro
+from gtcrn_micro.models.gtcrn_micro import GTCRNMicro
+
+
+# main entry
+# def main() -> None:
+#     parser = argparse.ArgumentParser()
+#     # TODO, add args here
+#     pass
+
 
 # ckpt = torch.load(
 #     # "./models/gtcrn/checkpoints/model_trained_on_vctk.tar", map_location="cpu"
@@ -20,7 +28,7 @@ from models.GTCRN_micro import GTCRN_micro
 # )
 
 
-model = GTCRN_micro().eval()
+model = GTCRNMicro().eval()
 # missing, unexpected = model.load_state_dict(state, strict=False)
 # print("Missing:", missing[:10], " ... total:", len(missing))
 # print("Unexpected:", unexpected[:10], " ... total:", len(unexpected), "\n")
@@ -29,7 +37,7 @@ model = GTCRN_micro().eval()
 # testing that forward pass works!
 # loading test
 mix, fs = sf.read(
-    "./data/DNS3/V2_V3_DNSChallenge_Blindset/noisy_blind_testset_v3_challenge_withSNR_16k/nonenglish_synthetic_male_SNR_21.0dB_german_1.wav",
+    "./gtcrn_micro/data/DNS3/V2_V3_DNSChallenge_Blindset/noisy_blind_testset_v3_challenge_withSNR_16k/nonenglish_synthetic_male_SNR_21.0dB_german_1.wav",
     dtype="float32",
 )
 print("\n", mix)

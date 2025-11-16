@@ -23,5 +23,8 @@ dependencies = [
     "torchmetrics>=1.8.2",
 ]
 
-[project.scripts]
-torch-converter = "gtcrn"
+# [project.scripts]
+# torch-converter = ...
+# micro-train = ...
+# model-eval
+# model profile
