@@ -1,5 +1,5 @@
 [project]
-name = "SERTime"
+name = "GTCRN-micro"
 version = "0.1.0"
 description = "Evaluation and Model changes"
 readme = "README.md"
@@ -22,3 +22,6 @@ dependencies = [
     "torch>=2.5.1",
     "torchmetrics>=1.8.2",
 ]
+
+[project.scripts]
+torch-converter = "gtcrn"

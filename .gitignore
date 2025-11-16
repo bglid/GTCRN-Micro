@@ -208,3 +208,5 @@ __marimo__/
 
 # dataset
 python/data/
+python/gtcrn_micro/data/
+python/gtcrn_micro/models/gtcrn/

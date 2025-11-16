@@ -866,6 +866,52 @@ wheels = [
 ]
 
 [[package]]
+name = "gtcrn-micro"
+version = "0.1.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "ai-edge-torch", version = "0.2.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "ai-edge-torch", version = "0.6.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "bandit" },
+    { name = "einops" },
+    { name = "librosa" },
+    { name = "omegaconf" },
+    { name = "onnx" },
+    { name = "onnxruntime", version = "1.20.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "onnxruntime", version = "1.23.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "pesq" },
+    { name = "ptflops" },
+    { name = "pystoi" },
+    { name = "ruff" },
+    { name = "safety" },
+    { name = "soundfile" },
+    { name = "tf-nightly" },
+    { name = "torch", version = "2.5.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "torch", version = "2.8.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "torchmetrics" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "ai-edge-torch", specifier = ">=0.2.1" },
+    { name = "bandit", specifier = ">=1.8.6" },
+    { name = "einops", specifier = ">=0.8.1" },
+    { name = "librosa", specifier = ">=0.11.0" },
+    { name = "omegaconf", specifier = ">=2.3.0" },
+    { name = "onnx", specifier = ">=1.19.1" },
+    { name = "onnxruntime", specifier = ">=1.20.1" },
+    { name = "pesq", specifier = ">=0.0.4" },
+    { name = "ptflops", specifier = ">=0.7.5" },
+    { name = "pystoi", specifier = ">=0.4.1" },
+    { name = "ruff", specifier = ">=0.14.0" },
+    { name = "safety", specifier = ">=3.6.2" },
+    { name = "soundfile", specifier = ">=0.13.1" },
+    { name = "tf-nightly", specifier = ">=2.21.0.dev20251029" },
+    { name = "torch", specifier = ">=2.5.1" },
+    { name = "torchmetrics", specifier = ">=1.8.2" },
+]
+
+[[package]]
 name = "h11"
 version = "0.16.0"
 source = { registry = "https://pypi.org/simple" }
@@ -3446,6 +3492,8 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/42/cd/85b422d24ee2096eaf6faa360c95ef9bdb59097d19b9624cebce4dd9bc2a/ruamel.yaml.clib-0.2.14-cp39-cp39-musllinux_1_2_x86_64.whl", hash = "sha256:808c7190a0fe7ae7014c42f73897cf8e9ef14ff3aa533450e51b1e72ec5239ad", size = 725028, upload-time = "2025-09-22T19:51:19.782Z" },
     { url = "https://files.pythonhosted.org/packages/4d/ac/99e6e0ea2584f84f447069d0187fe411e9b5deb7e3ddecda25001cfc7a95/ruamel.yaml.clib-0.2.14-cp39-cp39-win32.whl", hash = "sha256:6d5472f63a31b042aadf5ed28dd3ef0523da49ac17f0463e10fda9c4a2773352", size = 100915, upload-time = "2025-09-22T19:51:21.764Z" },
     { url = "https://files.pythonhosted.org/packages/5d/8d/846e43369658958c99d959bb7774136fff9210f9017d91a4277818ceafbf/ruamel.yaml.clib-0.2.14-cp39-cp39-win_amd64.whl", hash = "sha256:8dd3c2cc49caa7a8d64b67146462aed6723a0495e44bf0aa0a2e94beaa8432f6", size = 118706, upload-time = "2025-09-22T19:51:20.878Z" },
+    { url = "https://files.pythonhosted.org/packages/e7/cd/150fdb96b8fab27fe08d8a59fe67554568727981806e6bc2677a16081ec7/ruamel_yaml_clib-0.2.14-cp314-cp314-win32.whl", hash = "sha256:9b4104bf43ca0cd4e6f738cb86326a3b2f6eef00f417bd1e7efb7bdffe74c539", size = 102394, upload-time = "2025-11-14T21:57:36.703Z" },
+    { url = "https://files.pythonhosted.org/packages/bd/e6/a3fa40084558c7e1dc9546385f22a93949c890a8b2e445b2ba43935f51da/ruamel_yaml_clib-0.2.14-cp314-cp314-win_amd64.whl", hash = "sha256:13997d7d354a9890ea1ec5937a219817464e5cc344805b37671562a401ca3008", size = 122673, upload-time = "2025-11-14T21:57:38.177Z" },
 ]
 
 [[package]]
@@ -3814,52 +3862,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/fd/c2/e276a237acb09824822b0ada11b028ed4067fdc367a946730979feacb870/scipy-1.16.2-cp314-cp314t-musllinux_1_2_x86_64.whl", hash = "sha256:b0348d8ddb55be2a844c518cd8cc8deeeb8aeba707cf834db5758fc89b476a2c", size = 38790088, upload-time = "2025-09-11T17:44:53.011Z" },
     { url = "https://files.pythonhosted.org/packages/c6/b4/5c18a766e8353015439f3780f5fc473f36f9762edc1a2e45da3ff5a31b21/scipy-1.16.2-cp314-cp314t-win_amd64.whl", hash = "sha256:26284797e38b8a75e14ea6631d29bda11e76ceaa6ddb6fdebbfe4c4d90faf2f9", size = 39457455, upload-time = "2025-09-11T17:44:58.899Z" },
     { url = "https://files.pythonhosted.org/packages/97/30/2f9a5243008f76dfc5dee9a53dfb939d9b31e16ce4bd4f2e628bfc5d89d2/scipy-1.16.2-cp314-cp314t-win_arm64.whl", hash = "sha256:d2a4472c231328d4de38d5f1f68fdd6d28a615138f842580a8a321b5845cf779", size = 26448374, upload-time = "2025-09-11T17:45:03.45Z" },
-]
-
-[[package]]
-name = "sertime"
-version = "0.1.0"
-source = { virtual = "." }
-dependencies = [
-    { name = "ai-edge-torch", version = "0.2.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "ai-edge-torch", version = "0.6.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
-    { name = "bandit" },
-    { name = "einops" },
-    { name = "librosa" },
-    { name = "omegaconf" },
-    { name = "onnx" },
-    { name = "onnxruntime", version = "1.20.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "onnxruntime", version = "1.23.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
-    { name = "pesq" },
-    { name = "ptflops" },
-    { name = "pystoi" },
-    { name = "ruff" },
-    { name = "safety" },
-    { name = "soundfile" },
-    { name = "tf-nightly" },
-    { name = "torch", version = "2.5.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "torch", version = "2.8.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
-    { name = "torchmetrics" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "ai-edge-torch", specifier = ">=0.2.1" },
-    { name = "bandit", specifier = ">=1.8.6" },
-    { name = "einops", specifier = ">=0.8.1" },
-    { name = "librosa", specifier = ">=0.11.0" },
-    { name = "omegaconf", specifier = ">=2.3.0" },
-    { name = "onnx", specifier = ">=1.19.1" },
-    { name = "onnxruntime", specifier = ">=1.20.1" },
-    { name = "pesq", specifier = ">=0.0.4" },
-    { name = "ptflops", specifier = ">=0.7.5" },
-    { name = "pystoi", specifier = ">=0.4.1" },
-    { name = "ruff", specifier = ">=0.14.0" },
-    { name = "safety", specifier = ">=3.6.2" },
-    { name = "soundfile", specifier = ">=0.13.1" },
-    { name = "tf-nightly", specifier = ">=2.21.0.dev20251029" },
-    { name = "torch", specifier = ">=2.5.1" },
-    { name = "torchmetrics", specifier = ">=1.8.2" },
 ]
 
 [[package]]
