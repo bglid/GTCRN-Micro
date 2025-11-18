@@ -1,7 +1,8 @@
 import torch
-import torch.nn as nn
-import ai_edge_torch
+
+# import ai_edge_torch
 import soundfile as sf
+import onnx
 
 # test
 from torch import export
@@ -34,22 +35,22 @@ from gtcrn_micro.models.gtcrn_micro import GTCRNMicro
 
 model = GTCRNMicro().eval()
 
-print("=== ConvTranspose2d layers ===")
-for name, m in model.named_modules():
-    if isinstance(m, nn.ConvTranspose2d):
-        print(
-            name,
-            "in:",
-            m.in_channels,
-            "out:",
-            m.out_channels,
-            "kernel:",
-            m.kernel_size,
-            "stride:",
-            m.stride,
-            "groups:",
-            m.groups,
-        )
+# print("=== ConvTranspose2d layers ===")
+# for name, m in model.named_modules():
+#     if isinstance(m, nn.ConvTranspose2d):
+#         print(
+#             name,
+#             "in:",
+#             m.in_channels,
+#             "out:",
+#             m.out_channels,
+#             "kernel:",
+#             m.kernel_size,
+#             "stride:",
+#             m.stride,
+#             "groups:",
+#             m.groups,
+#         )
 # missing, unexpected = model.load_state_dict(state, strict=False)
 # print("Missing:", missing[:10], " ... total:", len(missing))
 # print("Unexpected:", unexpected[:10], " ... total:", len(unexpected), "\n")
@@ -98,18 +99,43 @@ exported = export.export(model, (input_small[None],))
 print("torch export works...")
 
 # conversion test
-edge_model = ai_edge_torch.convert(model, (input_small[None],))
-print("Conversion works!")
+# edge_model = ai_edge_torch.convert(model, (input_small[None],))
+# print("Conversion works!")
 
 # test TFLite Micro model
-edge_out = edge_model(
-    input[None],
-)
-if hasattr(edge_out, "shape"):
-    print(f"TFLM forward good! \n{edge_out.shape}")
-else:
-    print(type(edge_out))
+# edge_out = edge_model(
+#     input[None],
+# )
+# if hasattr(edge_out, "shape"):
+#     print(f"TFLM forward good! \n{edge_out.shape}")
+# else:
+#     print(type(edge_out))
+#
+# # export flatbuffer
+# edge_model.export("gtcrn.tflite")
+# print("Export of flatbuffer worked!")
 
-# export flatbuffer
-edge_model.export("gtcrn.tflite")
-print("Export of flatbuffer worked!")
+
+# -----------------------
+# Testing out Torch -> ONNX -> TF -> TFLM
+# onnx_program = torch.onnx.export(model, (input[None]), dynamo=True, report=True)
+# onnx_program.save("gtcrn_micro.onnx")
+
+# older approach - Works!
+torch.onnx.export(
+    model,
+    (input[None]),
+    "gtcrn_micro.onnx",
+    opset_version=17,
+    dynamo=False,
+    input_names=["audio"],
+    output_names=["mask"],
+    export_params=True,
+    do_constant_folding=True,
+    report=True,
+)
+
+
+# checking the model
+onnx_model = onnx.load("gtcrn_micro.onnx")
+onnx.checker.check_model(onnx_model)

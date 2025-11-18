@@ -12,6 +12,7 @@ dependencies = [
     "omegaconf>=2.3.0",
     "onnx>=1.19.1",
     "onnxruntime>=1.20.1",
+    "onnxscript>=0.5.6",
     "pesq>=0.0.4",
     "ptflops>=0.7.5",
     "pystoi>=0.4.1",
