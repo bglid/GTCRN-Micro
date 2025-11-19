@@ -523,13 +523,10 @@ class GTCRNMicro(nn.Module):
         # print("********** \nEncoder works\n**********")
 
         feat = self.dpgrnn1(feat)  # (B,16,T,33)
-        print(f"feat dp1 size: {feat.shape}")
         feat = self.dpgrnn2(feat)  # (B,16,T,33)
-        print(f"feat dp2 size: {feat.shape}")
         # print("********** \nDPLSTM works\n**********")
 
         m_feat = self.decoder(feat, en_outs)
-        print(f"feat decoder size: {feat.shape}")
         # print("********** \nDecoder works\n**********")
 
         m = self.erb.bs(m_feat)
@@ -589,9 +586,6 @@ if __name__ == "__main__":
 
     y1 = torch.istft(y1, 512, 256, 512, torch.hann_window(512).pow(0.5))
     y2 = torch.istft(y2, 512, 256, 512, torch.hann_window(512).pow(0.5))
-
-    # y1 = y1.squeeze(0)
-    # y2 = y2.squeeze(0)
 
     print((y1[: 16000 - 256 * 2] - y2[: 16000 - 256 * 2]).abs().max())
     print((y1[16000:] - y2[16000:]).abs().max())
