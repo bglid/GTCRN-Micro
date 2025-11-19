@@ -10,9 +10,19 @@
       "op_name": "/encoder/en_convs.4/Unsqueeze_1",
       "param_target": "op",
       "new_shape": [1, 973, 33, 8, 1]
-    }
+    },
     {
       "op_name": "/decoder/de_convs.0/Unsqueeze_1",
+      "param_target": "op",
+      "new_shape": [1, 973, 33, 8, 1]
+    },
+    {
+      "op_name": "/decoder/de_convs.1/Unsqueeze_1",
+      "param_target": "op",
+      "new_shape": [1, 973, 33, 8, 1]
+    },
+    {
+      "op_name": "/decoder/de_convs.2/Unsqueeze_1",
       "param_target": "op",
       "new_shape": [1, 973, 33, 8, 1]
     }
