@@ -33,5 +33,6 @@ def test_gtcrn_micro():
     # y2 = y2.squeeze(0)
 
     res1 = (y1[: 16000 - 256 * 2] - y2[: 16000 - 256 * 2]).abs().max()
-    # print((y1[16000:] - y2[16000:]).abs().max())
+    res2 = (y1[16000:] - y2[16000:]).abs().max()
     assert res1.item() == 0
+    assert res2.item() > 0
