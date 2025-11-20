@@ -3,30 +3,35 @@
   "operations": [
     {
       "op_name": "/encoder/en_convs.3/Unsqueeze_1",
-      "param_target": "op",
-      "new_shape": [1, 973, 33, 8, 1]
+      "param_target": "outputs",
+      "param_name": "/encoder/en_convs.3/Unsqueeze_1_output_0",
+      "post_process_transpose_perm": [0,2,3,1,4]
     },
     {
       "op_name": "/encoder/en_convs.4/Unsqueeze_1",
-      "param_target": "op",
-      "new_shape": [1, 973, 33, 8, 1]
+      "param_target": "outputs",
+      "param_name": "/encoder/en_convs.4/Unsqueeze_1_output_0",
+      "post_process_transpose_perm": [0,2,3,1,4]
     },
     {
       "op_name": "/decoder/de_convs.0/Unsqueeze_1",
-      "param_target": "op",
-      "new_shape": [1, 973, 33, 8, 1]
+      "param_target": "outputs",
+      "param_name": "/decoder/de_convs.0/Unsqueeze_1_output_0",
+      "post_process_transpose_perm": [0,2,3,1,4]
     },
     {
       "op_name": "/decoder/de_convs.1/Unsqueeze_1",
-      "param_target": "op",
-      "new_shape": [1, 973, 33, 8, 1]
+      "param_target": "outputs",
+      "param_name": "/decoder/de_convs.1/Unsqueeze_1_output_0",
+      "post_process_transpose_perm": [0,2,3,1,4]
     },
     {
       "op_name": "/decoder/de_convs.2/Unsqueeze_1",
-      "param_target": "op",
-      "new_shape": [1, 973, 33, 8, 1]
+      "param_target": "outputs",
+      "param_name": "/decoder/de_convs.2/Unsqueeze_1_output_0",
+      "post_process_transpose_perm": [0,2,3,1,4]
     }
   ],
-  "_comment": "To fix TF permutation mismatch",
+  "_comment": "To fix TF permutation mismatch. Transposing axes",
   "_generation_reason": "conversion_error"
 }
