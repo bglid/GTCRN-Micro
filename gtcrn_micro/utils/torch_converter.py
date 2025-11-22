@@ -93,6 +93,7 @@ torch.onnx.export(
     dynamo=False,
     input_names=["audio"],
     output_names=["mask"],
+    dynamic_axes=None,
     export_params=True,
     do_constant_folding=True,
     report=True,

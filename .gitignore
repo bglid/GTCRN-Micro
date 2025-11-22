@@ -213,3 +213,4 @@ __marimo__/
 /data/
 /gtcrn_micro/data/
 /gtcrn_micro/models/gtcrn/
+/gtcrn_micro/models/tflite/tflite_calibration.npy
