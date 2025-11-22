@@ -21,8 +21,8 @@ fi
 # run onnx conversion
 uv run onnx2tf \
 	\
-	-i "${ONNX_FILE}" \
-	-o "${ONNX_INPUT}${OUTPUT_PATH}" \
+	-i "${ONNX_INPUT}${ONNX_FILE}" \
+	-o "${OUTPUT_PATH}" \
 	-kat mix conv_cache tra_cache inter_cache \
 	-prf ${OUTPUT_PATH}${JSON_FILE} \
 	-cotof \

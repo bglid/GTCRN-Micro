@@ -14,12 +14,6 @@
       "post_process_transpose_perm": [0,3,4,2,1]
     },
     {
-      "op_name": "/decoder/de_convs.0/Unsqueeze_1",
-      "param_target": "outputs",
-      "param_name": "/decoder/de_convs.0/Unsqueeze_1_output_0",
-      "post_process_transpose_perm": [0,3,4,2,1]
-    },
-    {
       "op_name": "/decoder/de_convs.1/Unsqueeze_1",
       "param_target": "outputs",
       "param_name": "/decoder/de_convs.1/Unsqueeze_1_output_0",
