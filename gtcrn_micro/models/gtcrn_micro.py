@@ -70,24 +70,24 @@ class ERB(nn.Module):
         return torch.cat([x_erb_low, x_erb_high], dim=-1)
 
 
-class SFE(nn.Module):
-    """Subband Feature Extraction"""
-
-    def __init__(self, kernel_size=3, stride=1):
-        super().__init__()
-        self.kernel_size = kernel_size
-        self.unfold = nn.Unfold(
-            kernel_size=(1, kernel_size),
-            stride=(1, stride),
-            padding=(0, (kernel_size - 1) // 2),
-        )
-
-    def forward(self, x):
-        """x: (B,C,T,F)"""
-        xs = self.unfold(x).reshape(
-            x.shape[0], x.shape[1] * self.kernel_size, x.shape[2], x.shape[3]
-        )
-        return xs
+# class SFE(nn.Module):
+#     """Subband Feature Extraction"""
+#
+#     def __init__(self, kernel_size=3, stride=1):
+#         super().__init__()
+#         self.kernel_size = kernel_size
+#         self.unfold = nn.Unfold(
+#             kernel_size=(1, kernel_size),
+#             stride=(1, stride),
+#             padding=(0, (kernel_size - 1) // 2),
+#         )
+#
+#     def forward(self, x):
+#         """x: (B,C,T,F)"""
+#         xs = self.unfold(x).reshape(
+#             x.shape[0], x.shape[1] * self.kernel_size, x.shape[2], x.shape[3]
+#         )
+#         return xs
 
 
 # class TRA(nn.Module):
@@ -95,7 +95,9 @@ class SFE(nn.Module):
 #
 #     def __init__(self, channels):
 #         super().__init__()
-#         self.att_lstm = nn.LSTM(channels, channels * 2, 1, batch_first=True)
+#         # self.attn_tcn = TCN(channels, )
+#         # self.att_lstm = nn.LSTM(channels, channels * 2, 1, batch_first=True)
+#         # self.att_rnn = .TC(channels, channels * 2, 1, batch_first=True)
 #         self.att_fc = nn.Linear(channels * 2, channels)
 #         self.att_act = nn.Sigmoid()
 #
@@ -103,15 +105,13 @@ class SFE(nn.Module):
 #         """x: (B,C,T,F)"""
 #         zt = torch.mean(x.pow(2), dim=-1)  # (B,C,T)
 #         # DEBUG - - -
-#         # at = self.att_lstm(zt.transpose(1, 2))[0]
-#         # at = zt.transpose(1, 2)
-#         at = zt
+#         # at = self.att_rnn(zt.transpose(1, 2))[0]
+#         at = self.att_tcn(zt.transpose(1, 2))[0]
 #         at = self.att_fc(at).transpose(1, 2)
 #         at = self.att_act(at)
 #         At = at[..., None]  # (B,C,T,1)
 #
 #         return x * At
-#
 
 
 class ConvBlock(nn.Module):
@@ -220,139 +220,87 @@ class GTConvBlock(nn.Module):
         return x
 
 
-class GRNN(nn.Module):
-    """Grouped LSTM?"""
+class TCN(nn.Module):
+    """
+    Temporal Convolutional Block
+    2D convolution here
+    """
 
-    def __init__(
-        self,
-        input_size,
-        hidden_size,
-        num_layers=1,
-        batch_first=True,
-        bidirectional=False,
-    ):
+    def __init__(self, channels, kernel_size=3, dilation=1) -> None:
         super().__init__()
-        self.hidden_size = hidden_size
-        self.num_layers = num_layers
-        self.bidirectional = bidirectional
-        self.lstm1 = nn.LSTM(
-            input_size // 2,
-            hidden_size // 2,
-            num_layers,
-            batch_first=batch_first,
-            bidirectional=bidirectional,
+        # padding setup
+        self.pad = dilation * (kernel_size - 1)
+
+        # conv1
+        self.conv1 = nn.Conv2d(channels, channels, kernel_size=1, stride=1, padding=0)
+        self.bn1 = nn.BatchNorm2d(channels)
+        self.act1 = nn.PReLU()
+
+        # dep temporal conv
+        self.conv2 = nn.Conv2d(
+            channels,
+            channels,
+            kernel_size=(kernel_size, 1),
+            stride=1,
+            padding=(0, 0),
+            dilation=(dilation, 1),
+            groups=channels,
         )
-        self.lstm2 = nn.LSTM(
-            input_size // 2,
-            hidden_size // 2,
-            num_layers,
-            batch_first=batch_first,
-            bidirectional=bidirectional,
-        )
+        self.bn2 = nn.BatchNorm2d(channels)
+        self.act2 = nn.PReLU()
 
-    def forward(self, x, h=None, c=None):
-        """
-        x: (B, seq_length, input_size)
-        h: (num_layers, B, hidden_size)
-        """
-        # debug
-        if h is None:
-            if self.bidirectional:
-                h = torch.zeros(
-                    self.num_layers * 2, x.shape[0], self.hidden_size, device=x.device
-                )
-            else:
-                h = torch.zeros(
-                    self.num_layers, x.shape[0], self.hidden_size, device=x.device
-                )
-
-        # adding C for LSTM
-        if c is None:
-            if self.bidirectional:
-                c = torch.zeros(
-                    self.num_layers * 2, x.shape[0], self.hidden_size, device=x.device
-                )
-            else:
-                c = torch.zeros(
-                    self.num_layers, x.shape[0], self.hidden_size, device=x.device
-                )
-
-        x1, x2 = torch.chunk(x, chunks=2, dim=-1)
-        h1, h2 = torch.chunk(h, chunks=2, dim=-1)
-        h1, h2 = h1.contiguous(), h2.contiguous()
-        c1, c2 = torch.chunk(c, chunks=2, dim=-1)
-        c1, c2 = c1.contiguous(), c2.contiguous()
-        # adjusting outputs and inputs for LSTM
-        # DEBUG ----
-        y1 = x1
-        y2 = x2
-
-        # y1, (h1, c1) = self.lstm1(x1, (h1, c1))
-        # y2, (h2, c2) = self.lstm2(x2, (h2, c2))
-
-        y = torch.cat([y1, y2], dim=-1)
-        h = torch.cat([h1, h2], dim=-1)
-        c = torch.cat([c1, c2], dim=-1)
-        return y, h, c
-
-
-class DPGRNN(nn.Module):
-    """Grouped Dual-path RNN"""
-
-    def __init__(self, input_size, width, hidden_size, **kwargs):
-        super(DPGRNN, self).__init__(**kwargs)
-        self.input_size = input_size
-        self.width = width
-        self.hidden_size = hidden_size
-
-        self.intra_rnn = GRNN(
-            input_size=input_size, hidden_size=hidden_size // 2, bidirectional=True
-        )
-        self.intra_fc = nn.Linear(hidden_size, hidden_size)
-
-        # adjusting for micro ops
-        # self.intra_ln = nn.LayerNorm((width, hidden_size), eps=1e-8)
-        # self.intra_ln = nn.LayerNorm(hidden_size, eps=1e-8)
-
-        self.inter_rnn = GRNN(
-            input_size=input_size, hidden_size=hidden_size, bidirectional=False
-        )
-        self.inter_fc = nn.Linear(hidden_size, hidden_size)
-
-        # adjusting for micro ops
-        # self.inter_ln = nn.LayerNorm(((width, hidden_size)), eps=1e-8)
-        # self.inter_ln = nn.LayerNorm(hidden_size, eps=1e-8)
+        # conv 3 brings us back to same size as conv1
+        self.conv3 = nn.Conv2d(channels, channels, kernel_size=1, stride=1, padding=0)
+        self.bn3 = nn.BatchNorm2d(channels)
+        self.act3 = nn.PReLU()
 
     def forward(self, x):
-        """x: (B, C, T, F)"""
-        # Intra RNN
-        x = x.permute(0, 2, 3, 1)  # (B,T,F,C)
-        intra_x = x.reshape(
-            x.shape[0] * x.shape[1], x.shape[2], x.shape[3]
-        )  # (B*T,F,C)
-        intra_x = self.intra_rnn(intra_x)[0]  # (B*T,F,C)
-        intra_x = self.intra_fc(intra_x)  # (B*T,F,C)
-        intra_x = intra_x.reshape(
-            x.shape[0], -1, self.width, self.hidden_size
-        )  # (B,T,F,C)
-        # intra_x = self.intra_ln(intra_x)
-        intra_out = torch.add(x, intra_x)
+        """
+        x: (batch, seq length, input size, freq bins)
+        """
 
-        # Inter RNN
-        x = intra_out.permute(0, 2, 1, 3)  # (B,F,T,C)
-        inter_x = x.reshape(x.shape[0] * x.shape[1], x.shape[2], x.shape[3])
-        inter_x = self.inter_rnn(inter_x)[0]  # (B*F,T,C)
-        inter_x = self.inter_fc(inter_x)  # (B*F,T,C)
-        inter_x = inter_x.reshape(
-            x.shape[0], self.width, -1, self.hidden_size
-        )  # (B,F,T,C)
-        inter_x = inter_x.permute(0, 2, 1, 3)  # (B,T,F,C)
-        # inter_x = self.inter_ln(inter_x)
-        inter_out = torch.add(intra_out, inter_x)
+        # we are going to use a residual connection within this block
+        residual = x
 
-        dual_out = inter_out.permute(0, 3, 1, 2)  # (B,C,T,F)
+        # first conv pass
+        y1 = self.act1(self.bn1(self.conv1(x)))
 
-        return dual_out
+        # doing padding
+        y1 = nn.functional.pad(y1, [0, 0, self.pad, 0])
+        # Conv2 pass
+        y2 = self.act2(self.bn2(self.conv2(y1)))
+
+        # conv 3 but doing the activation with the resid
+        y3 = self.bn3(self.conv3(y2))
+
+        res = y3 + residual
+        return self.act3(res)
+
+
+class DPTCN(nn.Module):
+    """ """
+
+    def __init__(self, channels, n_layers=4, kernel_size=3, dilation=2) -> None:
+        super().__init__()
+        # trying to stack into blocks to recreate dp
+        blocks = []
+        self.dilation = 1  # going to increase this
+        for i in range(n_layers):
+            blocks.append(
+                TCN(channels=channels, kernel_size=kernel_size, dilation=dilation)
+            )
+            self.dilation *= dilation  # increases each block
+
+        self.blocks = nn.ModuleList(blocks)
+
+    def forward(self, x):
+        """
+        x: (B, C, T, F)
+        """
+        for tcn in self.blocks:
+            x = tcn(x)
+
+        return x
 
 
 class Encoder(nn.Module):
@@ -509,8 +457,8 @@ class GTCRNMicro(nn.Module):
 
         self.encoder = Encoder()
 
-        self.dpgrnn1 = DPGRNN(16, 33, 16)
-        self.dpgrnn2 = DPGRNN(16, 33, 16)
+        self.dptcn1 = DPTCN(channels=16, n_layers=4, kernel_size=3, dilation=2)
+        self.dptcn2 = DPTCN(channels=16, n_layers=4, kernel_size=3, dilation=2)
 
         self.decoder = Decoder()
 
@@ -537,9 +485,9 @@ class GTCRNMicro(nn.Module):
         print(f"feat enc size: {feat.shape}")
         # print("********** \nEncoder works\n**********")
 
-        feat = self.dpgrnn1(feat)  # (B,16,T,33)
-        feat = self.dpgrnn2(feat)  # (B,16,T,33)
-        # print("********** \nDPLSTM works\n**********")
+        feat = self.dptcn1(feat)  # (B,16,T,33)
+        feat = self.dptcn2(feat)  # (B,16,T,33)
+        print("********** \nDPLSTM works\n**********")
 
         m_feat = self.decoder(feat, en_outs)
         # print("********** \nDecoder works\n**********")
@@ -554,21 +502,6 @@ class GTCRNMicro(nn.Module):
 
 
 if __name__ == "__main__":
-    # checking ops
-    # model = GTCRNMicro()
-    # # key: op, val: name
-    # ops = set()
-    # print("Modules in GTCRN: \n")
-    # for name, module in model.named_modules():
-    #     ops.add(module)
-    #     # ops[module] = name
-    #     # print(f"Name: {name}\nModule Type: {module}\n---------")
-    # with open("./model_ops_basic.md", "w") as writefile:
-    #     for i in ops:
-    #         # print(f"Module: {i}\n---------------")
-    #         writefile.write(str(i))
-    #         writefile.writelines("\n--------\n")
-
     model = GTCRNMicro().eval()
 
     """complexity count"""

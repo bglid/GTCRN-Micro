@@ -24,6 +24,7 @@ dependencies = [
     "ptflops>=0.7.5",
     "pystoi>=0.4.1",
     "pytest>=8.4.2",
+    "pytorch-tcn==1.0.0",
     "ruff>=0.14.0",
     "simple-onnx-processing-tools>=1.1.31",
     "soundfile>=0.13.1",
