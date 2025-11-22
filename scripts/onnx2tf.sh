@@ -3,7 +3,7 @@
 set -euo pipefail
 
 # run from root
-ONNX_INPUT="gtcrn_micro/models/onnx/"
+# ONNX_INPUT="gtcrn_micro/models/onnx/"
 # ONNX_FILE=gtcrn_micro.onnx # testing lowered opset 16
 ONNX_FILE=gtcrn_s3.onnx # testing lowered opset 16
 OUTPUT_PATH="gtcrn_micro/models/tflite/"
@@ -20,7 +20,7 @@ fi
 # run onnx conversion
 uv run onnx2tf \
 	\
-	-i "${ONNX_INPUT}${ONNX_FILE}" \
+	-i "${ONNX_FILE}" \
 	-o "${OUTPUT_PATH}" \
 	-kat mix conv_cache tra_cache inter_cache \
 	-prf ${OUTPUT_PATH}${JSON_FILE} \
@@ -29,4 +29,4 @@ uv run onnx2tf \
 	-qt per-channel \
 	-cind "audio" "$CALIB_DATA" "[[[[0.]]]]" "[[[[1.]]]]" \
 	-v debug \
-	-ofgd
+	-ofgd # -i "${ONNX_INPUT}${ONNX_FILE}" \
