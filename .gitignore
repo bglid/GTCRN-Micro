@@ -214,3 +214,8 @@ __marimo__/
 /gtcrn_micro/data/
 /gtcrn_micro/models/gtcrn/
 /gtcrn_micro/models/tflite/tflite_calibration.npy
+
+# C build stuff
+/esp32_SE/managed_components
+/esp32_SE/sdkconfig.old
+/esp32_SE/sdkconfig

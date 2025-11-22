@@ -19,7 +19,7 @@ static const char *TAG = "GTCRN_MICRO_TEST";
 
 // Settings
 static const gpio_num_t led_pin = GPIO_NUM_4;
-static const int32_t sleep_time_ms = 1000;
+static const int32_t sleep_time_ms = 200;
 
 static constexpr int kTensorArenaSize = 400 * 1024;
 static uint8_t tensor_arena[kTensorArenaSize];
