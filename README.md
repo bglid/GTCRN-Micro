@@ -5,9 +5,10 @@
 [![License](https://img.shields.io/github/license/bglid/SERTime)](https://github.com/bglid/SERTime/blob/main/LICENSE)
 [![Actions status](https://github.com/bglid/SERTime/workflows/build-desktop/badge.svg)](https://github.com/bglid/SERTime/actions)
 [![Security: bandit](https://img.shields.io/badge/security-bandit-green.svg)](https://github.com/PyCQA/bandit)
-
-
-
+- - -
+### NOTE: Still need to train new model architecture
+*If you're reading this and wondering if the models are good to go, I am working through full toolchain validation and stil need to run the newly architected model through training*
+- - -
 </div>
 
 ## Roadmap / to-dos 
