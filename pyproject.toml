@@ -32,6 +32,7 @@ dependencies = [
     "tf-keras==2.19.0",
     "torch>=2.5.1",
     "torchmetrics>=1.8.2",
+    "tqdm>=4.67.1",
 ]
 
 [dependency-groups]
