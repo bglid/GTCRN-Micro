@@ -7,8 +7,25 @@ import torch.nn as nn
 
 
 class HybridLoss(nn.Module):
-    def __init__(self):
+    def __init__(
+        self,
+        n_fft=512,
+        hop_len=256,
+        win_len=512,
+        compress_factor=0.3,
+        eps=1e-12,
+        lamda_ri=30,
+        lamda_mag=70,
+    ):
         super().__init__()
+        self.n_fft = n_fft
+        self.hop_len = hop_len
+        self.win_len = win_len
+        self.window = torch.hann_window(win_len)
+        self.c = compress_factor
+        self.eps = eps
+        self.lamda_ri = lamda_ri
+        self.lamda_mag = lamda_mag
 
     def forward(self, pred_stft, true_stft):
         device = pred_stft.device

@@ -11,16 +11,16 @@ import numpy as np
 import soundfile as sf
 import torch
 import torch.distributed as dist
+import torch.multiprocessing as mp
 from joblib import Parallel, delayed
 from omegaconf import OmegaConf
 from pesq import pesq
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
-import torch.multiprocessing as mp
 
+from gtcrn_micro.dataloader import DNS3Dataset as Dataset
+from gtcrn_micro.loss import HybridLoss as Loss
 from gtcrn_micro.models.gtcrn_micro import GTCRNMicro as Model
-from gtcrn_micro.training.dataloader import DNS3Dataset as Dataset
-from gtcrn_micro.training.loss import HybridLoss as Loss
 from gtcrn_micro.utils.distributed_utils import reduce_value
 from gtcrn_micro.utils.scheduler import LinearWarmupCosineAnnealingLR as WarmupLR
 
@@ -244,11 +244,27 @@ class Trainer:
 
         for step, (noisy, clean) in enumerate(self.train_bar, 1):
             noisy = noisy.to(self.device)
+            noisy_spec = torch.stft(
+                noisy,
+                512,
+                256,
+                512,
+                torch.hann_window(512, device=self.device),
+                return_complex=False,
+            )
             clean = clean.to(self.device)
+            clean_spec = torch.stft(
+                clean,
+                512,
+                256,
+                512,
+                torch.hann_window(512, device=self.device),
+                return_complex=False,
+            )
 
-            enhanced = self.model(noisy)
+            enhanced = self.model(noisy_spec)
 
-            loss = self.loss_func(enhanced, clean)
+            loss = self.loss_func(enhanced, clean_spec)
             if self.world_size > 1:
                 loss = reduce_value(loss)
             total_loss += loss.item()
@@ -290,18 +306,36 @@ class Trainer:
         self.validation_bar = tqdm(self.validation_dataloader, ncols=123)
         for step, (noisy, clean) in enumerate(self.validation_dataloader, 1):
             noisy = noisy.to(self.device)
+            noisy_spec = torch.stft(
+                noisy,
+                512,
+                256,
+                512,
+                torch.hann_window(512, device=self.device),
+                return_complex=False,
+            )
             clean = clean.to(self.device)
+            clean_spec = torch.stft(
+                clean,
+                512,
+                256,
+                512,
+                torch.hann_window(512, device=self.device),
+                return_complex=False,
+            )
 
-            enhanced = self.model(noisy)
+            enhanced = self.model(noisy_spec)
 
-            loss = self.loss_func(enhanced, clean)
+            loss = self.loss_func(enhanced, clean_spec)
             if self.world_size > 1:
                 loss = reduce_value(loss)
             total_loss += loss.item()
 
             clean = clean.cpu().numpy()
+            # converting enhanced spec back to wave for pesq batch loss
+
             enhanced = enhanced.detach().cpu().numpy()
-            pesq_score_batch = Parallel(n_jobs=-1)(
+            pesq_score_batch = Parallel(n_jobs=1)(
                 delayed(pesq)(16000, c, e, "wb") for c, e in zip(clean, enhanced)
             )
             pesq_score = torch.tensor(pesq_score_batch, device=self.device).mean()
