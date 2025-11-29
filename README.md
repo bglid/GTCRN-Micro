@@ -13,6 +13,16 @@
 
 ## Roadmap / to-dos 
 
+##### *Update 11/29/2025:*
+
+Current model architecture in [gtcrn_micro.py](./gtcrn_micro/models/gtcrn_micro.py) is being trained on the **DNS3** dataset. Next to-dos are:
+
+- [ ] Depending on the TCN-based results of the trained model, try a simple LSTM architecture in place of the Dual paths.
+- [ ] Setup Streaming converter for chosen architecture
+- [ ] Create QAT training setup to run on HPC
+
+Chosen hardware for deployment will the **STM32H7**
+
 ##### *Update 11/26/2025:*
 
 Currently the model architecture needs to be stripped drown significantly, not just changing incompatible units, to invoke without tons of latency on the *ESP32-S3*.
