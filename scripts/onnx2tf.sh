@@ -5,10 +5,8 @@ set -euo pipefail
 # run from root
 ONNX_INPUT="gtcrn_micro/models/onnx/"
 ONNX_FILE=gtcrn_micro.onnx # testing lowered opset 16
-# ONNX_FILE=gtcrn_s3.onnx # testing lowered opset 16
 OUTPUT_PATH="gtcrn_micro/models/tflite/"
 JSON_FILE=replace_gtcrn_micro.json
-# JSON_FILE=replace_gtcrn_s3.json
 CALIB_DATA="${OUTPUT_PATH}tflite_calibration.npy"
 
 # firstly convert the model from PyTorch ->> ONNX

@@ -2,8 +2,8 @@
 GTCRN-Micro: MCU-focused rebuild of GTCRN
 """
 
-import torch
 import numpy as np
+import torch
 import torch.nn as nn
 from einops import rearrange
 
@@ -68,50 +68,6 @@ class ERB(nn.Module):
         x_erb_low = x_erb[..., : self.erb_subband_1]
         x_erb_high = self.ierb_fc(x_erb[..., self.erb_subband_1 :])
         return torch.cat([x_erb_low, x_erb_high], dim=-1)
-
-
-# class SFE(nn.Module):
-#     """Subband Feature Extraction"""
-#
-#     def __init__(self, kernel_size=3, stride=1):
-#         super().__init__()
-#         self.kernel_size = kernel_size
-#         self.unfold = nn.Unfold(
-#             kernel_size=(1, kernel_size),
-#             stride=(1, stride),
-#             padding=(0, (kernel_size - 1) // 2),
-#         )
-#
-#     def forward(self, x):
-#         """x: (B,C,T,F)"""
-#         xs = self.unfold(x).reshape(
-#             x.shape[0], x.shape[1] * self.kernel_size, x.shape[2], x.shape[3]
-#         )
-#         return xs
-
-
-# class TRA(nn.Module):
-#     """Temporal Recurrent Attention"""
-#
-#     def __init__(self, channels):
-#         super().__init__()
-#         # self.attn_tcn = TCN(channels, )
-#         # self.att_lstm = nn.LSTM(channels, channels * 2, 1, batch_first=True)
-#         # self.att_rnn = .TC(channels, channels * 2, 1, batch_first=True)
-#         self.att_fc = nn.Linear(channels * 2, channels)
-#         self.att_act = nn.Sigmoid()
-#
-#     def forward(self, x):
-#         """x: (B,C,T,F)"""
-#         zt = torch.mean(x.pow(2), dim=-1)  # (B,C,T)
-#         # DEBUG - - -
-#         # at = self.att_rnn(zt.transpose(1, 2))[0]
-#         at = self.att_tcn(zt.transpose(1, 2))[0]
-#         at = self.att_fc(at).transpose(1, 2)
-#         at = self.att_act(at)
-#         At = at[..., None]  # (B,C,T,1)
-#
-#         return x * At
 
 
 class ConvBlock(nn.Module):
@@ -450,7 +406,12 @@ class Mask(nn.Module):
 
 
 class GTCRNMicro(nn.Module):
-    def __init__(self):
+    def __init__(
+        self,
+        n_fft=512,
+        hop_len=256,
+        win_len=512,
+    ):
         super().__init__()
         self.erb = ERB(65, 64)
         # self.sfe = SFE(3, 1)

@@ -102,6 +102,7 @@ def torch2onnx(
 if __name__ == "__main__":
     # loading model
     model = GTCRNMicro().eval()
+
     # loading test data
     mix, fs = sf.read(
         "./gtcrn_micro/data/DNS3/V2_V3_DNSChallenge_Blindset/noisy_blind_testset_v3_challenge_withSNR_16k/ms_realrec_emotional_female_SNR_17.74dB_headset_A2AHXGFXPG6ZSR_Water_far_Laughter_12.wav",
@@ -109,4 +110,4 @@ if __name__ == "__main__":
     )
 
     # converting model
-    torch2onnx(model, mix, time_chunk=32, model_name="gtcrn_micro")
+    torch2onnx(model, mix, time_chunk=63, model_name="gtcrn_micro")
