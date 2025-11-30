@@ -387,7 +387,7 @@ class Decoder(nn.Module):
     def forward(self, x, en_outs):
         N_layers = len(self.de_convs)
         for i in range(N_layers):
-            print(x.shape)
+            # print(x.shape)
             x = self.de_convs[i](x + en_outs[N_layers - 1 - i])
         return x
 
@@ -443,12 +443,12 @@ class GTCRNMicro(nn.Module):
         # print("********** \nERB works\n**********")
 
         feat, en_outs = self.encoder(feat)
-        print(f"feat enc size: {feat.shape}")
+        # print(f"feat enc size: {feat.shape}")
         # print("********** \nEncoder works\n**********")
 
         feat = self.dptcn1(feat)  # (B,16,T,33)
         feat = self.dptcn2(feat)  # (B,16,T,33)
-        print("********** \nDPLSTM works\n**********")
+        # print("********** \nDPLSTM works\n**********")
 
         m_feat = self.decoder(feat, en_outs)
         # print("********** \nDecoder works\n**********")
