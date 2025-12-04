@@ -1,0 +1,15 @@
+---
+test_dataset:
+  # intrusive test
+  noisy_dir: gtcrn_micro/data/DNS3_test/noisy
+  clean_dir: gtcrn_micro/data/DNS3_test/clean
+
+  # non-intrusive test
+  # noisy_dir: gtcrn_micro/data/DNS3/V2_V3_DNSChallenge_Blindset/noisy_blind_testset_v3_challenge_withSNR_16k
+
+network:
+  exp_path: gtcrn_micro/data/exp_gtcrn_micro_2025-11-29-17h45m
+  config: ${network.exp_path}/config.yaml
+  ckpt_name: best_model_073
+  checkpoint: ${network.exp_path}/checkpoints/${network.ckpt_name}.tar
+  enh_folder: ${network.exp_path}/${network.ckpt_name}/enhanced

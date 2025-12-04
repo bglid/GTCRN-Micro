@@ -8,33 +8,13 @@ from torch import export
 
 from gtcrn_micro.models.gtcrn_micro import GTCRNMicro
 
-# main entry
-# def main() -> None:
-#     parser = argparse.ArgumentParser()
-#     # TODO, add args here
-#     pass
-
-
-# ckpt = torch.load(
-#     # "./models/gtcrn/checkpoints/model_trained_on_vctk.tar", map_location="cpu"
-#     "./models/gtcrn/checkpoints/model_trained_on_dns3.tar",
-#     map_location="cpu",
-# )
-
-# state
-# state = (
-#     ckpt.get("state_dict", None)
-#     or ckpt.get("model_state_dict", None)
-#     or ckpt.get("model", None)
-#     or ckpt
-# )
-
 
 def torch2onnx(
     model: nn.Module,
     sample_input: NDArray[np.float64],
     time_chunk: int,
     model_name: str,
+    checkpoint: str,
 ) -> None:
     """Convert Torch model to .onnx.
 
@@ -43,10 +23,40 @@ def torch2onnx(
         sample_input (NDArray[np.float64]): Sample small input for conversion
         time_chunk (int): Time in samples for the amount of audio you want for your input
         model_name (str): Name of onnx file that will be saved - "name".onnx
+        checkpoint (str): Path to the model checkpoint for conversion
     """
     ONNX_PATH = "./gtcrn_micro/models/onnx/"
+
+    # loading up model checkpoints
+    ckpt = torch.load(
+        checkpoint,
+        map_location="cpu",
+    )
+
+    state = (
+        ckpt.get("state_dict", None)
+        or ckpt.get("model_state_dict", None)
+        or ckpt.get("model", None)
+        or ckpt
+    )
+
+    # Handling if ckpt was saved from DDP and has module prefixes
+    if any(k.startswith("module.") for k in state.keys()):
+        state = {k.removeprefix("module."): v for k, v in state.items()}
+
+    # print state dict info
+    missing, unexpected = model.load_state_dict(state, strict=False)
+    print("-" * 20)
+    print(f"\nLoaded checkpoint: {checkpoint}")
+    print(f"\tmissing keys: {missing}")
+    print(f"\tunexpected keys: {unexpected}")
+
+    # explicitly setting model to eval in function
+    model.eval()
+    model.to("cpu")
+
     # testing that forward pass works!
-    assert fs == 16000
+    assert fs == 16000, f"Expected fs of 16000, instead got {fs}"
     # running stft
     input = torch.stft(
         torch.from_numpy(sample_input),
@@ -72,8 +82,6 @@ def torch2onnx(
 
     # -----------------------
     # Torch -> ONNX for later -> TF -> TFLM
-    # onnx_program = torch.onnx.export(model, (input[None]), dynamo=True, report=True)
-    # onnx_program.save("gtcrn_micro.onnx")
 
     print("starting onnx export:")
     torch.onnx.export(
@@ -101,13 +109,14 @@ def torch2onnx(
 
 if __name__ == "__main__":
     # loading model
-    model = GTCRNMicro().eval()
+    model = GTCRNMicro()
 
     # loading test data
     mix, fs = sf.read(
-        "./gtcrn_micro/data/DNS3/V2_V3_DNSChallenge_Blindset/noisy_blind_testset_v3_challenge_withSNR_16k/ms_realrec_emotional_female_SNR_17.74dB_headset_A2AHXGFXPG6ZSR_Water_far_Laughter_12.wav",
+        "./gtcrn_micro/data/DNS3/noisy_blind_testset_v3_challenge_withSNR_16k/ms_realrec_emotional_female_SNR_17.74dB_headset_A2AHXGFXPG6ZSR_Water_far_Laughter_12.wav",
         dtype="float32",
     )
 
-    # converting model
-    torch2onnx(model, mix, time_chunk=63, model_name="gtcrn_micro")
+    ckpt = "./gtcrn_micro/ckpts/best_model_dns3.tar"
+    # converting model, 1 second time chunk
+    torch2onnx(model, mix, time_chunk=63, model_name="gtcrn_micro", checkpoint=ckpt)

@@ -3,42 +3,46 @@
 
 import logging
 from pathlib import Path
+from typing import Any
 
 import librosa
 import numpy as np
 import soundfile as sf
+from numpy.typing import NDArray
 from p_tqdm import p_map
 from pesq import PesqError, pesq
 from pystoi import stoi
 
-METRICS = ("SDR", "SISNR", "PESQ", "ESTOI")
+METRICS = ("SDR", "SISNR", "PESQ", "STOI")
 
 
 ################################################################
 # Definition of metrics
 ################################################################
-def estoi_metric(ref, inf, fs=16000):
-    """Calculate Extended Short-Time Objective Intelligibility (ESTOI).
+def stoi_metric(ref: NDArray[Any], inf: NDArray[Any], fs: int = 16000):
+    """Calculate Short-Time Objective Intelligibility (ESTOI).
 
     Args:
-        ref (np.ndarray): reference signal (time,)
-        inf (np.ndarray): enhanced signal (time,)
+        ref (NDArray[Any]): reference signal (time,)
+        inf (NDArray[Any]): enhanced signal (time,)
         fs (int): sampling rate in Hz
     Returns:
-        estoi (float): ESTOI value between [0, 1]
+        stoi (float): STOI value between [0, 1]
     """
-    return stoi(ref, inf, fs_sig=fs, extended=True)
+    return stoi(ref, inf, fs_sig=fs, extended=False)
 
 
-def pesq_metric(ref, inf, fs=8000):
+def pesq_metric(ref: NDArray[Any], inf: NDArray[Any], fs: int = 8000):
     """Calculate Perceptual Evaluation of Speech Quality (PESQ).
 
     Args:
-        ref (np.ndarray): reference signal (time,)
-        inf (np.ndarray): enhanced signal (time,)
+        ref (NDArray[Any]): reference signal (time,)
+        inf (NDArray[Any]): enhanced signal (time,)
         fs (int): sampling rate in Hz
     Returns:
         pesq (float): PESQ value between [-0.5, 4.5]
+    Raises:
+        ValueError: Sample rate error if not 8kHz of 16kHz
     """
     assert ref.shape == inf.shape
     if fs == 8000:
@@ -146,8 +150,8 @@ def process_one_pair(data_pair):
         if metric == "PESQ":
             pesq_score = pesq_metric(ref, inf, fs=fs)
             scores[metric] = pesq_score if pesq_score is not None else np.nan
-        elif metric == "ESTOI":
-            scores[metric] = estoi_metric(ref, inf, fs=fs)
+        elif metric == "STOI":
+            scores[metric] = stoi_metric(ref, inf, fs=fs)
         elif metric == "SISNR":
             scores[metric] = sisnr_metric(ref, inf)
         elif metric == "SDR":

@@ -233,7 +233,7 @@ class TCN(nn.Module):
         return self.act3(res)
 
 
-class DPTCN(nn.Module):
+class GTCN(nn.Module):
     """ """
 
     def __init__(self, channels, n_layers=4, kernel_size=3, dilation=2) -> None:
@@ -251,7 +251,7 @@ class DPTCN(nn.Module):
 
     def forward(self, x):
         """
-        x: (B, C, T, F)
+        x: (B, C, T, F).
         """
         for tcn in self.blocks:
             x = tcn(x)
@@ -348,7 +348,7 @@ class Decoder(nn.Module):
                     stride=(1, 1),
                     padding=(2 * 1, 1),
                     dilation=(1, 1),
-                    # padding=(2 * 2, 1), # switched for LiteRT inference
+                    # switched for LiteRT inference
                     # dilation=(2, 1),
                     use_deconv=True,
                 ),
@@ -387,7 +387,7 @@ class Decoder(nn.Module):
     def forward(self, x, en_outs):
         N_layers = len(self.de_convs)
         for i in range(N_layers):
-            print(x.shape)
+            # print(x.shape)
             x = self.de_convs[i](x + en_outs[N_layers - 1 - i])
         return x
 
@@ -418,8 +418,8 @@ class GTCRNMicro(nn.Module):
 
         self.encoder = Encoder()
 
-        self.dptcn1 = DPTCN(channels=16, n_layers=4, kernel_size=3, dilation=2)
-        self.dptcn2 = DPTCN(channels=16, n_layers=4, kernel_size=3, dilation=2)
+        self.gtcn1 = GTCN(channels=16, n_layers=4, kernel_size=3, dilation=2)
+        self.gtcn2 = GTCN(channels=16, n_layers=4, kernel_size=3, dilation=2)
 
         self.decoder = Decoder()
 
@@ -436,28 +436,19 @@ class GTCRNMicro(nn.Module):
         spec_mag = torch.sqrt(spec_real**2 + spec_imag**2 + 1e-12)
         feat = torch.stack([spec_mag, spec_real, spec_imag], dim=1)  # (B,3,T,257)
 
-        # print("\n----------\nDebug:\n********** \nSpec works\n**********")
-
         feat = self.erb.bm(feat)  # (B,3,T,129)
-        # feat = self.sfe(feat)  # (B,9,T,129)
-        # print("********** \nERB works\n**********")
 
         feat, en_outs = self.encoder(feat)
-        print(f"feat enc size: {feat.shape}")
-        # print("********** \nEncoder works\n**********")
 
-        feat = self.dptcn1(feat)  # (B,16,T,33)
-        feat = self.dptcn2(feat)  # (B,16,T,33)
-        print("********** \nDPLSTM works\n**********")
+        feat = self.gtcn1(feat)  # (B,16,T,33)
+        feat = self.gtcn2(feat)  # (B,16,T,33)
 
         m_feat = self.decoder(feat, en_outs)
-        # print("********** \nDecoder works\n**********")
 
         m = self.erb.bs(m_feat)
 
         spec_enh = self.mask(m, spec_ref.permute(0, 3, 2, 1))  # (B,2,T,F)
         spec_enh = spec_enh.permute(0, 3, 2, 1)  # (B,F,T,2)
-        # print("********** \nSpeech Enhancement works\n**********")
 
         return spec_enh
 

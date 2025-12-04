@@ -35,7 +35,7 @@ loss:
 
 train_dataset:
   length_seconds: 10
-  total_train_data: 160000
+  total_train_data: 180000
   num_data_per_epoch: 10000
   random_start: false
   train: true
@@ -59,9 +59,9 @@ valid_dataloader:
 samplerate: 16000
 
 trainer:
-  epochs: 100
+  epochs: 200
   save_checkpoint_interval: 1
   clip_grad_norm_value: 3.0
   exp_path: ./gtcrn_micro/data/DNS3/exp_gtcrn_micro
-  resume: false
-  resume_datetime: 2025-11-26-00h00m
+  resume: true
+  resume_datetime: 2025-11-29-17h45m

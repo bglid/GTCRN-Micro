@@ -5,7 +5,7 @@
 ### Goals
  - [x] Setup Repo and tooling
  - [x] Design an adjusted DNN model based off of *GTCRN* that is supported by TFLite Micro
- - [ ] Train new full toolchain-compatible model
+ - [x] Train new full toolchain-compatible model
  - [ ] Export and Quantize tuned DNN model
  - [ ] Deploy / Test on MCU ~~(*ESP32-S3 Nano*)~~
  - [ ] Report performance and evaluation results

@@ -24,7 +24,7 @@
  - [x] Search for models to work off of (*GTCRN*)
  - [x] setup datasets for offline evaluation
  - [x] Test PyTorch Converters
- - [ ] Setup datasets for training
+ - [x] Setup datasets for training
  - [x] Setup basic .sh scripts/makefile
  - [x] Scope out datasheets for $I^{2}S$ Protocol 
 
@@ -39,18 +39,19 @@
  - [x] Make model adjustments to comply with **Torch $\rightarrow$ ONNX $\rightarrow$ TFLite $\rightarrow$ TFLM**
  - [x] Fix parameter replacement for JSON
  - [x] Train new model
- - [ ] Depending on the TCN-based results of the trained model, try a simple LSTM architecture in place of the Dual paths.
+ - [ ] ~~Depending on the TCN-based results of the trained model, try a simple LSTM architecture in place of the Dual paths.~~
  - [ ] Setup Streaming converter for chosen architecture
  - [ ] Create QAT training setup to run on HPC
+ - [ ] Add examples of how to run the model in main README
 
 - - - 
 
 ### Export and Quantization
 
  - [x] Convert PyTorch Adjusted model with TFLite Micro using PTQ 
+ - [] Convert PyTorch Adjusted model with TFLite Micro with QAT
+ - [] Report measure of # of params and MMACs, ensure can fit on-device or adjust
  - [ ] Profile and measure accuracy of quanitzed model
- - [ ] Potentially revisit [model design](#model-design) to implement QAT if bad performance 
- - [ ] Report measure of # of params and MMACs, ensure can fit on-device or adjust
  - [ ] Scope new hardware
 
 

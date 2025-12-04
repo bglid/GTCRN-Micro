@@ -1,11 +1,34 @@
 # Model Training and Evaluation
 - - -
 ## Main adjustments
- - Swapped GRU blocks in DPGRNN for Dual-Path TCN
+ - Swapped GRU blocks + DPGRNN for a psuedo "Grouped-TCN"
  - Removed optional SFE and TRA (mainly for TFLite/LiteRT conversion)
  - Dropped channel and group amounts for quantization compliance
- - swapping `ConvTranspose2d` ops for MCU friendly ops (upsample and `Conv2d`)  
+ - Adjusted dilation and padding for quantization compliance
 - - - 
+## Model directory
+
+ - [Full PyTorch checkpoints](./ckpts/best_model_dns3.tar) 
+ - [ONNX files](./models/onnx/)
+ - [Quantized .tflite files](./models/tflite/)
+
+- - - 
+
+## Evaluation Results
+
+- **Dataset:** Synthetic DNS3 Test Set of 800 10-second instances
+- **Model Params:** 18.38 k
+- **MMACs:** 46.22
+- **Examples:** See [examples](./examples/) - Mixed results were deliberately picked to give an honestly representation
+
+| Model            | Quantization | SDR  | SI-SNR | PESQ | STOI |
+|------------------|-------------|------|--------|------|------|
+| GTCRN-Micro    | None     | 8.72  | 8.39    | 1.79  | 0.82  |
+| GTCRN-Micro QAT    | None     | ...  | ...    | ...  | ...  |
+| GTCRN-Micro  (.tflite)   | int8        | ... | ...   | ... | ... |
+| GTCRN-Micro QAT (.tflite) | int8 (QAT)  | ...  | ...    | ...  | ...  |
+- - - 
+
 ## Acknowledgements
 The original model this is based off of is [GTCRN](https://github.com/Xiaobin-Rong/gtcrn), as well as a notable amount of the setup to train and change the model was based off of the same authors project [SEtrain](https://github.com/Xiaobin-Rong/SEtrain/tree/plus).
 

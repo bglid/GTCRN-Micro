@@ -12,13 +12,36 @@ from omegaconf import OmegaConf
 from torch.utils import data
 from tqdm import tqdm
 
-# loading up VCTK dataset
-# train_data_path = "/data/VCTK-DEMAND/noisy_testset_wav/"
-# valid_data_path = ... # 1572 utt
-
 # need to switch on HPC
 DNS3_TRAIN = "./gtcrn_micro/data/DNS3/noisy"
 DNS3_VALID = "./gtcrn_micro/data/DNS3_val/noisy"
+
+
+# functions to help with lining up the data
+def _build_clean_index(clean_root: str):
+    """Grab and organize the clean data index for good pairing."""
+    clean_files = librosa.util.find_files(clean_root, ext="wav")
+    index = {}
+
+    for path in clean_files:
+        base = os.path.basename(path)
+        if "fileid_" in base:
+            fid = base.split("fileid_")[-1].split(".")[0]
+            index[fid] = path
+
+    if not index:
+        print(f"No clean fileids found in {clean_root}")
+    else:
+        print(f"Built clean index with {len(index)} entries from {clean_root}")
+    return index
+
+
+def _extract_fileid_from_noisy(path: str):
+    """Grab the fileid from the noisy filename."""
+    base = os.path.basename(path)
+    if "fileid_" not in base:
+        return None
+    return base.split("fileid_")[-1].split(".")[0]
 
 
 # ------
@@ -27,15 +50,17 @@ class DNS3Dataset(torch.utils.data.Dataset):
         self,
         fs: int = 16000,
         length_seconds: int = 8,
-        total_train_data: int = 180000,  # fix to shuffle better
+        total_train_data: int = 180000,
         num_data_per_epoch: int = 40000,
         random_start: bool = False,
         train: bool = True,
     ):
         if train:
             print(f"Running Training on DNS3:\n{DNS3_TRAIN}")
+            noisy_root = DNS3_TRAIN
         else:
             print(f"Running Validation on DNS3:\n{DNS3_VALID}")
+            noisy_root = DNS3_VALID
 
         # Member variables for dataset
         self.noisy_database_train = sorted(
@@ -52,6 +77,34 @@ class DNS3Dataset(torch.utils.data.Dataset):
         self.num_data_per_epoch = num_data_per_epoch
         self.train = train
 
+        all_noisy = sorted(librosa.util.find_files(noisy_root, ext="wav"))
+
+        clean_root = noisy_root.replace("noisy", "clean")
+        self.clean_index = _build_clean_index(clean_root)
+        # Keep only noisy files that have matching clean fileid
+        paired_noisy = []
+        for p in all_noisy:
+            fid = _extract_fileid_from_noisy(p)
+            if fid is None:
+                continue
+            if fid in self.clean_index:
+                paired_noisy.append(p)
+
+        if not paired_noisy:
+            raise RuntimeError(
+                f"No paired noisy/clean files found. Check DNS directory structure and filenames.\n"
+                f"noisy_root={noisy_root}\nclean_root={clean_root}"
+            )
+
+        print(
+            f"[INFO] Found {len(paired_noisy)} noisy files with matching clean_fileid in {clean_root}"
+        )
+
+        if train:
+            self.noisy_database_train = paired_noisy[:total_train_data]
+        else:
+            self.noisy_database_valid = paired_noisy
+
     def sample_data_per_epoch(self):
         self.noisy_data_train = sample(
             self.noisy_database_train, self.num_data_per_epoch
@@ -64,14 +117,20 @@ class DNS3Dataset(torch.utils.data.Dataset):
             noisy_list = self.noisy_database_valid
 
         noisy_path = noisy_list[index]
-        noisy_name = os.path.basename(noisy_path)
-        fileid = noisy_name.split("fileid_")[-1].split(".")[0]
+        fid = _extract_fileid_from_noisy(noisy_path)
+        clean_path = self.clean_index.get(fid, None)
+        # noisy_name = os.path.basename(noisy_path)
+        # fileid = noisy_name.split("fileid_")[-1].split(".")[0]
 
         # build clean path
-        clean_root = DNS3_TRAIN.replace("noisy", "clean")
-        clean_name = f"clean_fileid_{fileid}.wav"
-        clean_path = os.path.join(clean_root, clean_name)
+        # clean_root = DNS3_TRAIN.replace("noisy", "clean")
+        # clean_name = f"clean_fileid_{fileid}.wav"
+        # clean_path = os.path.join(clean_root, clean_name)
         # clean_path = noisy_path.replace("noisy", "clean")
+        if clean_path is None:
+            raise RuntimeError(
+                f"No clean file found for noisy file:\n  noisy={noisy_path}\n  fileid={fid}"
+            )
 
         try:
             if self.random_start:
