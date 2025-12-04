@@ -49,9 +49,9 @@
 ### Export and Quantization
 
  - [x] Convert PyTorch Adjusted model with TFLite Micro using PTQ 
+ - [] Convert PyTorch Adjusted model with TFLite Micro with QAT
+ - [] Report measure of # of params and MMACs, ensure can fit on-device or adjust
  - [ ] Profile and measure accuracy of quanitzed model
- - [ ] Potentially revisit [model design](#model-design) to implement QAT if bad performance 
- - [ ] Report measure of # of params and MMACs, ensure can fit on-device or adjust
  - [ ] Scope new hardware
 
 

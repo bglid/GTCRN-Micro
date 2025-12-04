@@ -6,13 +6,20 @@
  - Dropped channel and group amounts for quantization compliance
  - Adjusted dilation and padding for quantization compliance
 - - - 
+## Model directory
+
+ - [Full PyTorch checkpoints](./ckpts/best_model_dns3.tar) 
+ - [ONNX files](./models/onnx/)
+ - [Quantized .tflite files](./models/tflite/)
+
+- - - 
 
 ## Evaluation Results
 
-**Dataset:** Synthetic DNS3 Test Set of 800 10-second instances
-**Model Params:** 18.38 k
-**MMACs:** 46.22
-**Examples:** See [examples](./examples/) - Mixed results were deliberately picked to give an honestly representation
+- **Dataset:** Synthetic DNS3 Test Set of 800 10-second instances
+- **Model Params:** 18.38 k
+- **MMACs:** 46.22
+- **Examples:** See [examples](./examples/) - Mixed results were deliberately picked to give an honestly representation
 
 | Model            | Quantization | SDR  | SI-SNR | PESQ | STOI |
 |------------------|-------------|------|--------|------|------|

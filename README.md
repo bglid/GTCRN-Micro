@@ -9,6 +9,8 @@
 
 *Project is still underway. The first non-quantized model checkpoints can be found [here](./gtcrn_micro/ckpts/). This checkpoint is ready to be used and it's performance can be found [here](./gtcrn_micro/README.md)*.
 
+*First quantized model .tflite files can be found [here](./gtcrn_micro/models/tflite/)*
+
 *For updates, check out either the issues, or the project roadmap [here](./docs/plan.md) and [here](./docs/TODO.md)*. 
 
 *My plan is to get a full version with the deployment code up before the end of December!*
@@ -75,11 +77,17 @@ uv sync
 </details>
 
 ### Using the offline non-quantized model
-WIP
+*WIP*
+
+- Trained model checkpoints can be found in [ckpts](./gtcrn_micro/ckpts/)
+- Onnx files can be found int [onxx](./gtcrn_micro/models/onnx/)
 ...
 
 ### Quantized model
-WIP
+*WIP*
+
+- Quantized tflite files can be found in [tflite](./gtcrn_micro/models/tflite/)
+     - [Calibration data](./gtcrn_micro/models/tflite/tflite_calibration.npy) & the necessary [replacement .json](./gtcrn_micro/models/tflite/replace_gtcrn_micro.json) are there for example if you want to recreate the quantization
 ...
 - - - 
 
