@@ -15,6 +15,10 @@ import torch.multiprocessing as mp
 from joblib import Parallel, delayed
 from omegaconf import OmegaConf
 from pesq import pesq
+
+# QAT SETUP
+from torch.ao.quantization import get_default_qat_qconfig
+from torch.ao.quantization.quantize_fx import prepare_qat_fx
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
@@ -81,7 +85,18 @@ def run(rank, config, args):
         collate_fn=collate_fn,
     )
 
-    model = Model(**config["network_config"]).to(args.device)
+    # QAT SETUP
+    # floating point model
+    model_fp = Model(**config["network_config"])
+
+    # setting up QAT configuration
+    qconfig = get_default_qat_qconfig("fbgemm")
+    qconfig_dict = {"": qconfig}
+
+    # wrapping the model with fake quant layers
+    model = prepare_qat_fx(model_fp, qconfig_dict)
+    model.train()
+    model = model.to(args.device)
 
     # if more nodes, run data parallelism with synced gradients
     if args.world_size > 1:
