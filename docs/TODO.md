@@ -41,7 +41,7 @@
  - [x] Train new model
  - [ ] ~~Depending on the TCN-based results of the trained model, try a simple LSTM architecture in place of the Dual paths.~~
  - [ ] Setup Streaming converter for chosen architecture
- - [ ] Create QAT training setup to run on HPC
+ - [ ] ~~Create QAT training setup to run on HPC~~
  - [ ] Add examples of how to run the model in main README
 
 - - - 
@@ -49,7 +49,6 @@
 ### Export and Quantization
 
  - [x] Convert PyTorch Adjusted model with TFLite Micro using PTQ 
- - [] Convert PyTorch Adjusted model with TFLite Micro with QAT
  - [] Report measure of # of params and MMACs, ensure can fit on-device or adjust
  - [ ] Profile and measure accuracy of quanitzed model
  - [ ] Scope new hardware

@@ -16,6 +16,8 @@ cd /N/project/icassp2026/GTCRN_micro/GTCRN-Micro || return
 
 # for single GPU
 uv run python -m gtcrn_micro.train -C gtcrn_micro/conf/cfg_train_DNS3.yaml -D 0
+echo "Running normal training, single GPU"
 
 # for multiple GPUs
 # uv run python -m gtcrn_micro.train -C gtcrn_micro/conf/cfg_train_DNS3.yaml -D 0,1,2,3
+# echo "Running normal training, mult. GPUs"

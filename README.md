@@ -23,6 +23,7 @@ The goal of this project is to walk through adjusting a modern, powerful, lightw
 
 The motivation for this project comes from a general interest in designing speech processing (mainly speech enhancement) models that can run on microcontrollers. Impresive models such as GTCRN showcase significant advancements in designing speech enhancement that maintain great performance whilst being very lightweight. I have been generally curious in working through the process of quantizing and deploying a model like GTCRN to a microcontroller for quite some time. Ultimately, it's a passion project that allows me to build skills in this area of interest, and help provide insight for anyone else looking to do the same. 
 
+Please check out the [acknowledgements!](#acknowledgements)
 - - -
 
 ## How to use
@@ -106,12 +107,13 @@ More details can be found in [./gtcrn_micro](./gtcrn_micro/README.md)
 - - - 
 ## Roadmap / to-dos 
 
-##### *Update 11/29/2025:*
+##### *Update 12/06/2025:*
+
+Based on some issues getting QAT to work without changing some model architecture, decided it was premature to implement. Will revisit if needed
 
 Current model architecture in [gtcrn_micro.py](./gtcrn_micro/models/gtcrn_micro.py) is being trained on the **DNS3** dataset. Next to-dos are:
 
 - [ ] Setup Streaming converter for chosen architecture
-- [ ] Create QAT training setup to run on HPC
 
 Chosen hardware for deployment will be either the **ESP32-S3** or the **STM32H7** if the model is too large still for the ESP32
 

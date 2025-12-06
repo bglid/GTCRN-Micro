@@ -11,16 +11,16 @@ import numpy as np
 import soundfile as sf
 import torch
 import torch.distributed as dist
+import torch.multiprocessing as mp
 from joblib import Parallel, delayed
 from omegaconf import OmegaConf
 from pesq import pesq
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
-import torch.multiprocessing as mp
 
-from gtcrn_micro.models.gtcrn_micro import GTCRNMicro as Model
 from gtcrn_micro.dataloader import DNS3Dataset as Dataset
 from gtcrn_micro.loss import HybridLoss as Loss
+from gtcrn_micro.models.gtcrn_micro import GTCRNMicro as Model
 from gtcrn_micro.utils.distributed_utils import reduce_value
 from gtcrn_micro.utils.scheduler import LinearWarmupCosineAnnealingLR as WarmupLR
 
