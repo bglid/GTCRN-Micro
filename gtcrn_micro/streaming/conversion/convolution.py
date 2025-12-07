@@ -6,8 +6,6 @@ from typing import Tuple, Union
 import torch
 import torch.nn as nn
 
-from gtcrn_micro.streaming.conversion.convert import convert_to_stream
-
 
 class StreamConv1d(nn.Module):
     """Causal streaming 1d convolution over time domain. Does forward pass with ring buffer style, but uses slicing instead of pointers.
@@ -163,7 +161,9 @@ class StreamConvTranspose2d(nn.Module):
         else:
             raise ValueError("Invalid Stride!!")
 
-        assert self.T_stride == 1, "Time stride must be 1 in deconv!"
+        assert self.T_stride == 1, (
+            f"Time stride must be 1 in deconv. Got {self.T_stride} instead"
+        )
 
         # ensuring causal padding
         if type(padding) is int:
@@ -174,7 +174,7 @@ class StreamConvTranspose2d(nn.Module):
         else:
             raise ValueError("Invalid padding size!")
 
-        assert self.T_pad == 0, "Padding must be 0 in deconv for causality!"
+        assert self.T_pad == 0, f"Padding must be 0 in deconv. Got {self.T_pad} instead"
 
         if type(dilation) is int:
             self.T_dilation = dilation
@@ -249,13 +249,3 @@ class StreamConvTranspose2d(nn.Module):
 
         output = self.ConvTranspose2d(input)
         return output, out_cache
-
-
-if __name__ == "__main__":
-    from .convert import convert_to_stream
-
-    # running test cases
-    # Conv1d Stream
-    Sconv = StreamConv1d(1, 1, 3)
-    Conv = nn.Conv1d(1, 1, 3)
-    convert_to_stream()
