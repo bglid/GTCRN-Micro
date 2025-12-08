@@ -95,7 +95,7 @@ uv sync
 
 ## Current Results (DNS3)
 
-**GTCRN-Micro** evaluated on synthetically generated DNS3 test subset:
+**Offline GTCRN-Micro** evaluated on synthetically generated DNS3 test subset:
 | Metric | Score |
 |--------|-------|
 | SDR    | 8.72 |
@@ -107,13 +107,19 @@ More details can be found in [./gtcrn_micro](./gtcrn_micro/README.md)
 - - - 
 ## Roadmap / to-dos 
 
+##### *Update 12/08/2025:*
+
+My initial padding decision in the decoder blocks really hurt the performance of the streaming model. Therefore, I am going to have to revisit at a later date with a changed model architecture. 
+
+Next steps then are to report offline quantization inference results and attempt to deploy that to hardware for pure demo purposes. 
+
+Afterwards, for future work, a retrained streaming-friendly & quantization-friendly model will be trained and posted.
+
 ##### *Update 12/06/2025:*
 
 Based on some issues getting QAT to work without changing some model architecture, decided it was premature to implement. Will revisit if needed
 
-Current model architecture in [gtcrn_micro.py](./gtcrn_micro/models/gtcrn_micro.py) is being trained on the **DNS3** dataset. Next to-dos are:
-
-- [ ] Setup Streaming converter for chosen architecture
+Current model architecture in [gtcrn_micro.py](./gtcrn_micro/models/gtcrn_micro.py) is being trained on the **DNS3** dataset. 
 
 Chosen hardware for deployment will be either the **ESP32-S3** or the **STM32H7** if the model is too large still for the ESP32
 

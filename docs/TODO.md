@@ -33,14 +33,11 @@
 ### Model Design
 
  - [x] Setup offline evaluation metrics in [/python](/python/)
- <!-- - [ ] load .onnx files -->
  - [x] Reimplement model replacing GRUs and for TFLM
- <!-- - [ ] Run metrics to profile on desktop against onnxruntime inference  -->
  - [x] Make model adjustments to comply with **Torch $\rightarrow$ ONNX $\rightarrow$ TFLite $\rightarrow$ TFLM**
  - [x] Fix parameter replacement for JSON
  - [x] Train new model
- - [ ] ~~Depending on the TCN-based results of the trained model, try a simple LSTM architecture in place of the Dual paths.~~
- - [ ] Setup Streaming converter for chosen architecture
+ - [ ] Setup Streaming converter for chosen architecture 
  - [ ] ~~Create QAT training setup to run on HPC~~
  - [ ] Add examples of how to run the model in main README
 
