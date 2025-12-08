@@ -29,6 +29,9 @@ def convert_to_stream(stream_model, model) -> None:
         elif key.replace("Conv2d.", "") in og_state_dict.keys():
             new_state_dict[key] = og_state_dict[key.replace("Conv2d.", "")]
 
+        elif key.replace(".deconv", "") in og_state_dict.keys():
+            new_state_dict[key] = og_state_dict[key.replace(".deconv", "")]
+
         # adjusting the weight layouts for streaming ConvTranspose2d
         elif key.replace("ConvTranspose2d.", "") in og_state_dict.keys():
             if key.endswith("weight"):

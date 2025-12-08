@@ -224,3 +224,5 @@ __marimo__/
 *model_visualization.html
 gtcrn_micro/utils/tflite_visualize.py
 gtcrn_micro/models/gtcrn_micro_lstm.py
+gtcrn_micro/models/gtcrn_micro_zero.py
+gtcrn_micro/streaming/
