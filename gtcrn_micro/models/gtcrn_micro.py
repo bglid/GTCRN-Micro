@@ -418,8 +418,8 @@ class GTCRNMicro(nn.Module):
 
         self.encoder = Encoder()
 
-        self.gtcn1 = GTCN(channels=16, n_layers=4, kernel_size=3, dilation=2)
-        self.gtcn2 = GTCN(channels=16, n_layers=4, kernel_size=3, dilation=2)
+        self.dptcn1 = GTCN(channels=16, n_layers=4, kernel_size=3, dilation=2)
+        self.dptcn2 = GTCN(channels=16, n_layers=4, kernel_size=3, dilation=2)
 
         self.decoder = Decoder()
 
@@ -440,8 +440,8 @@ class GTCRNMicro(nn.Module):
 
         feat, en_outs = self.encoder(feat)
 
-        feat = self.gtcn1(feat)  # (B,16,T,33)
-        feat = self.gtcn2(feat)  # (B,16,T,33)
+        feat = self.dptcn1(feat)  # (B,16,T,33)
+        feat = self.dptcn2(feat)  # (B,16,T,33)
 
         m_feat = self.decoder(feat, en_outs)
 
