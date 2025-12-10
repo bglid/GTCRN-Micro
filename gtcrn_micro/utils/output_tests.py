@@ -124,13 +124,6 @@ def output_test() -> None:
     print("TFLite MAE:", abs_diff_t.mean())
     print("TFLite median abs diff:", np.median(abs_diff_t))
 
-    # # printing some shape info
-    # print("PyTorch input shape:", input.shape)
-    # print("TFLite input_details[0]['shape']:", input_details[0]["shape"])
-    # print("TFLite output_details[0]['shape']:", output_details[0]["shape"])
-    # print("pytorch_output.shape:", pytorch_output.shape)
-    # print("tflite_output.shape:", tflite_output.shape)
-
     print("DONE")
 
 
