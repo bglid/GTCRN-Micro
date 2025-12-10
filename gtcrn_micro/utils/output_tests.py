@@ -24,8 +24,8 @@ def output_test() -> None:
         return_complex=False,
     )
 
-    input = input[None][0]
     input = input[:, :63, :]
+    input = input[None, ...]
     # Check PyTorch output
     # load state dict from checkpoint
     model = GTCRNMicro()
@@ -54,7 +54,6 @@ def output_test() -> None:
     model.eval()
     model.to("cpu")
 
-    input = torch.randn(1, 257, 63, 2)
     with torch.no_grad():
         pytorch_output = model(input).cpu().numpy()
     print("\npytorch output done")
@@ -69,45 +68,67 @@ def output_test() -> None:
     )
     print("\nonnx output done")
 
+    # TFLite
     ## Load tflite model and compare outputs
     tflite_path = "./gtcrn_micro/models/tflite/gtcrn_micro_full_integer_quant.tflite"
     interpreter = tf.lite.Interpreter(model_path=tflite_path)
 
-    interpreter.allocate_tensors()
-
     input_details = interpreter.get_input_details()
     output_details = interpreter.get_output_details()
 
-    # fix input shapes
+    # fix input scale
+    in_scale, in_zero = input_details[0]["quantization"]
+    out_scale, out_zero = output_details[0]["quantization"]
+    input_data1 = input.permute(0, 2, 3, 1).detach().numpy().astype(np.float32)
 
-    # input_shape1 = input_details[0]["shape"]
-    input_data1 = input.permute(0, 2, 3, 1).detach().numpy().astype(np.int8)
-    interpreter.set_tensor(input_details[0]["index"], input_data1)
+    interpreter.resize_tensor_input(
+        input_details[0]["index"], input_data1.shape, strict=True
+    )
 
+    interpreter.allocate_tensors()
+    # setting input data to match the input details shape and size
+    if input_details[0]["dtype"] == np.int8:
+        x_q = np.round(input_data1 / in_scale + in_zero).astype(np.int8)
+    else:
+        x_q = input_data1
+
+    interpreter.set_tensor(input_details[0]["index"], x_q)
     interpreter.invoke()
 
-    output_data = interpreter.get_tensor(output_details[0]["index"])
+    y_q = interpreter.get_tensor(output_details[0]["index"])
 
-    print("\ntflite output done")
+    if output_details[0]["dtype"] == np.int8:
+        tflite_output = (y_q.astype(np.float32) - out_zero) * out_scale
+    else:
+        tflite_output = y_q.astype(np.float32)
+
+    print("\nTFLite output done")
 
     print(
         f"Onnx outputs error vs pytorch: {np.mean(np.abs(onnx_output[0] - pytorch_output))}"
     )
-    diff = onnx_output[0] - pytorch_output
-    abs_diff = np.abs(diff)
+    diff_onnx = onnx_output[0] - pytorch_output
+    abs_diff = np.abs(diff_onnx)
 
-    print("MAE:", abs_diff.mean())
-    print("Median abs diff:", np.median(abs_diff))
-    print("95th percentile:", np.percentile(abs_diff, 95))
-    print("99th percentile:", np.percentile(abs_diff, 99))
-    print("Fraction > 0.5:", np.mean(abs_diff > 0.5))
-    print("Fraction > 1.0:", np.mean(abs_diff > 1.0))
+    print("onnx MAE:", abs_diff.mean())
+    print("onnx median abs diff:", np.median(abs_diff))
     print(
-        f"Tflite outputs error vs pytorch: {np.mean(np.abs(pytorch_output - output_data))}"
+        f"Tflite outputs error vs pytorch: {np.mean(np.abs(pytorch_output - tflite_output))}"
     )
     print(
-        f"Tflite outputs error vs onnx: {np.mean(np.abs(onnx_output[0] - output_data))}"
+        f"Tflite outputs error vs onnx: {np.mean(np.abs(onnx_output[0] - tflite_output))}"
     )
+    diff_tflite = tflite_output - pytorch_output
+    abs_diff_t = np.abs(diff_tflite)
+    print("TFLite MAE:", abs_diff_t.mean())
+    print("TFLite median abs diff:", np.median(abs_diff_t))
+
+    # # printing some shape info
+    # print("PyTorch input shape:", input.shape)
+    # print("TFLite input_details[0]['shape']:", input_details[0]["shape"])
+    # print("TFLite output_details[0]['shape']:", output_details[0]["shape"])
+    # print("pytorch_output.shape:", pytorch_output.shape)
+    # print("tflite_output.shape:", tflite_output.shape)
 
     print("DONE")
 
