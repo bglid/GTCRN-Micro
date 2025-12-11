@@ -4,6 +4,7 @@ import soundfile as sf
 import torch
 import torch.nn as nn
 from numpy.typing import NDArray
+from omegaconf import OmegaConf
 from torch import export
 
 from gtcrn_micro.models.gtcrn_micro import GTCRNMicro
@@ -50,6 +51,7 @@ def torch2onnx(
     print(f"\nLoaded checkpoint: {checkpoint}")
     print(f"\tmissing keys: {missing}")
     print(f"\tunexpected keys: {unexpected}")
+    assert not missing and not unexpected, "State dict mismatch – check model config!"
 
     # explicitly setting model to eval in function
     model.eval()
@@ -73,11 +75,13 @@ def torch2onnx(
     print("Forward works!", tuple(y.shape) if hasattr(y, "shape") else type(y), "\n")
 
     # making a smaller input for conversion
-    input_small = input[:, :time_chunk, :]
-    print(f"input small size: {input_small.shape}")
+    # input_small = input[:, :time_chunk, :]
+    # input_small = input[:, :time_chunk, :]
+    # print(f"input small size: {input_small.shape}")
+    print(f"input shape: {input.shape}")
 
     # test export from torch
-    export.export(model, (input_small[None],))
+    export.export(model, (input[None],))
     print("torch export works...")
 
     # -----------------------
@@ -86,7 +90,7 @@ def torch2onnx(
     print("starting onnx export:")
     torch.onnx.export(
         model,
-        (input_small[None]),  # Exporting with small input
+        (input[None]),  # Exporting with small input
         f"{ONNX_PATH}{model_name}.onnx",
         opset_version=16,  # Lowerin opset for LN
         dynamo=False,
@@ -109,7 +113,9 @@ def torch2onnx(
 
 if __name__ == "__main__":
     # loading model
-    model = GTCRNMicro()
+    cfg_infer = OmegaConf.load("gtcrn_micro/conf/cfg_infer.yaml")
+    cfg_network = OmegaConf.load(cfg_infer.network.config)
+    model = GTCRNMicro(**cfg_network["network_config"])
 
     # loading test data
     mix, fs = sf.read(

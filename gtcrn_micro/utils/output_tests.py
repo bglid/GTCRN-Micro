@@ -24,7 +24,6 @@ def output_test() -> None:
         return_complex=False,
     )
 
-    input = input[:, :63, :]
     input = input[None, ...]
     # Check PyTorch output
     # load state dict from checkpoint

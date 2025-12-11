@@ -10,7 +10,7 @@ from numpy.typing import NDArray
 # starting with basic data calibration
 # NOTE: Need to improve in the future
 CALIB_DATA = Path(
-    "./gtcrn_micro/data/DNS3/V2_V3_DNSChallenge_Blindset/noisy_blind_testset_v3_challenge_withSNR_16k/"
+    "./gtcrn_micro/data/DNS3/noisy_blind_testset_v3_challenge_withSNR_16k/"
 )
 OUTPUT = Path("./gtcrn_micro/models/tflite/tflite_calibration.npy")
 
@@ -64,8 +64,8 @@ def main():
 
     # need to pad or truncate data
     # max frames comes from previously working with conversion
-    # max_frames = 973
-    max_frames = 63  # changing max frames for lighter model
+    max_frames = 973
+    # max_frames = 63  # changing max frames for lighter model
     padding = []
     # getting every tensor and checking it's shapes
     for tsr in data:
