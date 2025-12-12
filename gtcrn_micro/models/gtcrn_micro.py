@@ -113,8 +113,6 @@ class GTConvBlock(nn.Module):
         self.pad_size = (kernel_size[0] - 1) * dilation[0]
         conv_module = nn.ConvTranspose2d if use_deconv else nn.Conv2d
 
-        # self.sfe = SFE(kernel_size=3, stride=1)
-
         # if removing SFE, remove * 3 because we don't have a kernel of size 3
         self.point_conv1 = conv_module(in_channels // 2, hidden_channels, 1)  # no SFE
         # self.point_conv1 = conv_module(in_channels // 2 * 3, hidden_channels, 1)
@@ -150,10 +148,8 @@ class GTConvBlock(nn.Module):
         self.point_conv2 = conv_module(hidden_channels, in_channels // 2, 1)
         self.point_bn2 = nn.BatchNorm2d(in_channels // 2)
 
-        # self.tra = TRA(in_channels // 2)
-
     def shuffle(self, x1, x2):
-        """x1, x2: (B,C,T,F)"""
+        """x1, x2: (B,C,T,F)."""
         x = torch.stack([x1, x2], dim=1)
         x = x.transpose(1, 2).contiguous()  # (B,C,2,T,F)
         x = rearrange(x, "b c g t f -> b (c g) t f")  # (B,2C,T,F)
@@ -165,11 +161,17 @@ class GTConvBlock(nn.Module):
 
         # x1 = self.sfe(x1)
         h1 = self.point_act(self.point_bn1(self.point_conv1(x1)))
-        h1 = nn.functional.pad(h1, [0, 0, self.pad_size, 0])
+        # guaranteeing matching shape of h in deconv
+        if not self.use_deconv:
+            h1 = nn.functional.pad(h1, [0, 0, self.pad_size, 0])
+
         h1 = self.depth_act(self.depth_bn(self.depth_conv(h1)))
         h1 = self.point_bn2(self.point_conv2(h1))
 
-        # h1 = self.tra(h1)
+        # matching h1 for time shuffle
+        T = x2.size(2)  # time size
+        if h1.size(2) != T:
+            h1 = h1[:, :, -T:, :]
 
         x = self.shuffle(h1, x2)
 
@@ -240,12 +242,12 @@ class GTCN(nn.Module):
         super().__init__()
         # trying to stack into blocks to recreate dp
         blocks = []
-        self.dilation = 1  # going to increase this
+        # self.dilation = 1  # going to increase this
+        d = 1
         for i in range(n_layers):
-            blocks.append(
-                TCN(channels=channels, kernel_size=kernel_size, dilation=dilation)
-            )
-            self.dilation *= dilation  # increases each block
+            blocks.append(TCN(channels=channels, kernel_size=kernel_size, dilation=d))
+            # fixing dilation
+            d *= dilation  # increases each block
 
         self.blocks = nn.ModuleList(blocks)
 
@@ -335,7 +337,7 @@ class Decoder(nn.Module):
                     16,
                     (3, 3),
                     stride=(1, 1),
-                    padding=(2 * 1, 1),
+                    padding=(0, 1),
                     dilation=(1, 1),
                     # padding=(2 * 5, 1), # switched for LiteRT inference
                     # dilation=(5, 1),
@@ -346,7 +348,7 @@ class Decoder(nn.Module):
                     16,
                     (3, 3),
                     stride=(1, 1),
-                    padding=(2 * 1, 1),
+                    padding=(0, 1),
                     dilation=(1, 1),
                     # switched for LiteRT inference
                     # dilation=(2, 1),
@@ -357,7 +359,7 @@ class Decoder(nn.Module):
                     16,
                     (3, 3),
                     stride=(1, 1),
-                    padding=(2 * 1, 1),
+                    padding=(0, 1),
                     dilation=(1, 1),
                     use_deconv=True,
                 ),
@@ -418,8 +420,8 @@ class GTCRNMicro(nn.Module):
 
         self.encoder = Encoder()
 
-        self.dptcn1 = GTCN(channels=16, n_layers=4, kernel_size=3, dilation=2)
-        self.dptcn2 = GTCN(channels=16, n_layers=4, kernel_size=3, dilation=2)
+        self.gtcn1 = GTCN(channels=16, n_layers=4, kernel_size=3, dilation=2)
+        self.gtcn2 = GTCN(channels=16, n_layers=4, kernel_size=3, dilation=2)
 
         self.decoder = Decoder()
 
@@ -440,8 +442,8 @@ class GTCRNMicro(nn.Module):
 
         feat, en_outs = self.encoder(feat)
 
-        feat = self.dptcn1(feat)  # (B,16,T,33)
-        feat = self.dptcn2(feat)  # (B,16,T,33)
+        feat = self.gtcn1(feat)  # (B,16,T,33)
+        feat = self.gtcn2(feat)  # (B,16,T,33)
 
         m_feat = self.decoder(feat, en_outs)
 
