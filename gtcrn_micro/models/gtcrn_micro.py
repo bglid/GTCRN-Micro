@@ -170,8 +170,10 @@ class GTConvBlock(nn.Module):
 
         # matching h1 for time shuffle
         T = x2.size(2)  # time size
-        if h1.size(2) != T:
-            h1 = h1[:, :, -T:, :]
+        if h1.size(2) > T:
+            h1 = h1[:, :, :T, :]
+        elif h1.size(2) < T:
+            x2 = x2[:, :, : h1.size(2), :]
 
         x = self.shuffle(h1, x2)
 
