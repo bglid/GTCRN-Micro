@@ -101,6 +101,12 @@ def main():
 
     np.save(OUTPUT, clipped_data)
     print(f"Scale = {scale}")
+    print("**********\nCalibration info\n**********")
+    x = np.load(OUTPUT)
+    print(f"Shape = {x.shape}")
+    print(f"Min/max: {x.min(), x.max()}")
+    print(f"po1/p99: {np.percentile(x, 1), np.percentile(x, 99)}")
+    print("**********")
 
 
 if __name__ == "__main__":
