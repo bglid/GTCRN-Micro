@@ -47,15 +47,16 @@ def wav_2_tensor(wav_path: Path) -> NDArray[np.float64]:
     )
 
     # specifically for the tf model conversion we need to transpose the inputs
-    stft_np = stft.numpy().transpose(1, 2, 0)
+    # stft_np = stft.numpy().transpose(1, 2, 0)
+    # fixing for TF NHWC
+    stft_np = stft.numpy().transpose(1, 0, 2)  # -> (T, F, 2)
     return stft_np
 
 
 def main():
     """Generate calibration data set by input wav."""
     # getting .wav files in directory
-    # only taking 32 samples for now
-    wavs = sorted(CALIB_DATA.glob("*.wav"))[:32]
+    wavs = sorted(CALIB_DATA.glob("*.wav"))[:500]
     data = []
     # appending the tensor stft to data list
     for i in wavs:
@@ -69,21 +70,37 @@ def main():
     padding = []
     # getting every tensor and checking it's shapes
     for tsr in data:
-        T, C, F = tsr.shape
+        T, F, C = tsr.shape
+
+        assert C == 2, tsr.shape
         if T >= max_frames:
-            tsr = tsr[:max_frames]
+            tsr = tsr[:max_frames, :, :]
         # else do padding
         else:
-            pad = np.zeros((max_frames - T, C, F), dtype=tsr.dtype)
+            pad = np.zeros((max_frames - T, F, C), dtype=tsr.dtype)
             tsr = np.concatenate([tsr, pad], axis=0)
 
         padding.append(tsr)
 
     # reconstructing the now padded data (if needed)
-    data = np.stack(padding, axis=0)
+    data = np.stack(padding, axis=0).astype(np.float32)
 
-    print(f"**********\nData shape: {data.shape}\n**********")
-    np.save(OUTPUT, data.astype("float32"))
+    print("**********\nData info\n**********")
+    # debugging:
+    print(data.shape, data.dtype)
+    print(f"Min/max: {data.min(), data.max()}")
+    print(f"po1/p99: {np.percentile(data, 1), np.percentile(data, 99)}")
+    print("**********")
+
+    # clipping data for quantization
+    scale_low = np.percentile(data, 0.1)
+    scale_high = np.percentile(data, 99.9)
+    scale = max(abs(scale_low), abs(scale_high)) * 2.0
+
+    clipped_data = np.clip(data / scale + 0.5, 0.0, 1.0).astype(np.float32)
+
+    np.save(OUTPUT, clipped_data)
+    print(f"Scale = {scale}")
 
 
 if __name__ == "__main__":
