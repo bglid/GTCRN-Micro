@@ -13,7 +13,6 @@ from gtcrn_micro.models.gtcrn_micro import GTCRNMicro
 def torch2onnx(
     model: nn.Module,
     sample_input: NDArray[np.float64],
-    time_chunk: int,
     model_name: str,
     checkpoint: str,
 ) -> None:
@@ -22,7 +21,6 @@ def torch2onnx(
     Args:
         model (nn.Module): Model to convert to onnx
         sample_input (NDArray[np.float64]): Sample small input for conversion
-        time_chunk (int): Time in samples for the amount of audio you want for your input
         model_name (str): Name of onnx file that will be saved - "name".onnx
         checkpoint (str): Path to the model checkpoint for conversion
     """
@@ -130,5 +128,4 @@ if __name__ == "__main__":
     )
 
     # ckpt = "./gtcrn_micro/ckpts/best_model_dns3.tar"
-    # converting model, 1 second time chunk
-    torch2onnx(model, mix, time_chunk=63, model_name="gtcrn_micro", checkpoint="")
+    torch2onnx(model, mix, model_name="gtcrn_micro", checkpoint="")

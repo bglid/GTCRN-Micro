@@ -49,7 +49,7 @@ def wav_2_tensor(wav_path: Path) -> NDArray[np.float64]:
     # specifically for the tf model conversion we need to transpose the inputs
     # stft_np = stft.numpy().transpose(1, 2, 0)
     # fixing for TF NHWC
-    stft_np = stft.numpy().transpose(1, 0, 2)  # -> (T, F, 2)
+    stft_np = stft.numpy().transpose(1, 2, 0)  # -> (T, F, 2)
     return stft_np
 
 
@@ -70,14 +70,14 @@ def main():
     padding = []
     # getting every tensor and checking it's shapes
     for tsr in data:
-        T, F, C = tsr.shape
+        T, C, F = tsr.shape
 
         assert C == 2, tsr.shape
         if T >= max_frames:
             tsr = tsr[:max_frames, :, :]
         # else do padding
         else:
-            pad = np.zeros((max_frames - T, F, C), dtype=tsr.dtype)
+            pad = np.zeros((max_frames - T, C, F), dtype=tsr.dtype)
             tsr = np.concatenate([tsr, pad], axis=0)
 
         padding.append(tsr)

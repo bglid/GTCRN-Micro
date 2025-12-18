@@ -36,7 +36,7 @@ uv run onnx2tf \
 	-cotof \
 	-oiqt \
 	-qt per-channel \
-	-cind "audio" "$CALIB_DATA" "[[[[0.5, 0.5]]]]" "[[[[0.0501392033, 0.0501392033]]]]" \
+	-cind "audio" "$CALIB_DATA" "[[[[0.5], [0.5]]]]" "[[[[0.0501392033], [0.0501392033]]]]" \
 	-rtpo PReLU \
 	-osd \
 	-b 1 \
