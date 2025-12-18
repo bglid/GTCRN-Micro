@@ -33,6 +33,7 @@ dependencies = [
     "soundfile>=0.13.1",
     "tensorflow==2.19.0",
     "tf-keras==2.19.0",
+    "tflite-runtime>=2.14.0",
     "torch>=2.5.1",
     "torchmetrics>=1.8.2",
     "tqdm>=4.67.1",

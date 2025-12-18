@@ -5,7 +5,7 @@ test_dataset:
   clean_dir: gtcrn_micro/data/DNS3_test/clean
 
   # non-intrusive test
-  # noisy_dir: gtcrn_micro/data/DNS3/V2_V3_DNSChallenge_Blindset/noisy_blind_testset_v3_challenge_withSNR_16k
+  # noisy_dir: gtcrn_micro/data/DNS3/noisy_blind_testset_v3_challenge_withSNR_16k
 
 network:
   exp_path: gtcrn_micro/data/exp_gtcrn_micro_2025-11-29-17h45m

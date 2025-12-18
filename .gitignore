@@ -226,3 +226,10 @@ gtcrn_micro/utils/tflite_visualize.py
 gtcrn_micro/models/gtcrn_micro_lstm.py
 gtcrn_micro/models/gtcrn_micro_zero.py
 gtcrn_micro/streaming/
+gtcrn_micro/models/onnx/*.cpp
+gtcrn_micro/models/onnx/*.sh
+gtcrn_micro/models/onnx/test*
+
+# Until streaming is done:
+gtcrn_micro/models/onnx/
+gtcrn_micro/models/tflite

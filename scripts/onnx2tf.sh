@@ -32,14 +32,14 @@ uv run onnx2tf \
 	\
 	-i "${ONNX_INPUT}${ONNX_FILE}" \
 	-o "${OUTPUT_PATH}" \
-	-kat mix conv_cache tra_cache inter_cache \
+	\
 	-prf ${OUTPUT_PATH}${JSON_FILE} \
 	-cotof \
 	-oiqt \
 	-qt per-channel \
-	-cind "audio" "$CALIB_DATA" "[[[[0.]]]]" "[[[[1.]]]]" \
+	-cind "audio" "$CALIB_DATA" "[[[[0.5], [0.5]]]]" "[[[[0.0501392033], [0.0501392033]]]]" \
 	-rtpo PReLU \
 	-osd \
 	-b 1 \
 	-v debug \
-	-ofgd
+	-ofgd # -kat audio conv_cache \
