@@ -44,10 +44,11 @@ def output_test() -> None:
         state = {k.removeprefix("module."): v for k, v in state.items()}
 
     # print state dict info
-    missing, unexpected = model.load_state_dict(state, strict=False)
-    print("-" * 20)
-    print(f"\tmissing keys: {missing}")
-    print(f"\tunexpected keys: {unexpected}")
+    # NOTE: not loading state-dict until new model is trained
+    # missing, unexpected = model.load_state_dict(state, strict=False)
+    # print("-" * 20)
+    # print(f"\tmissing keys: {missing}")
+    # print(f"\tunexpected keys: {unexpected}")
 
     # explicitly setting model to eval in function
     model.eval()
@@ -71,6 +72,15 @@ def output_test() -> None:
     ## Load tflite model and compare outputs
     tflite_path = "./gtcrn_micro/models/tflite/gtcrn_micro_full_integer_quant.tflite"
     interpreter = tf.lite.Interpreter(model_path=tflite_path)
+
+    print("\n------------\nTFLite shape check:\n")
+    print(">>INPUTS<<")
+    for d in interpreter.get_input_details():
+        print(f"{d['name']}, shape: {d['shape']}\ndtype: {d['dtype']}")
+
+    for d in interpreter.get_output_details():
+        print("\n>>OUTPUTS<<")
+        print(f"{d['name']}, shape: {d['shape']}\ndtype: {d['dtype']}")
 
     input_details = interpreter.get_input_details()
     output_details = interpreter.get_output_details()
@@ -96,13 +106,18 @@ def output_test() -> None:
 
     y_q = interpreter.get_tensor(output_details[0]["index"])
 
+    print("\noutput shape: ", y_q.shape, "dtype: ", y_q.dtype)
     # dequantizing for comparison
     if output_details[0]["dtype"] == np.int8:
         tflite_output = (y_q.astype(np.float32) - out_zero) * out_scale
     else:
         tflite_output = y_q.astype(np.float32)
 
-    print("\nTFLite output done")
+    print("\n-------------")
+
+    print("\nTFLite output done\n")
+    print("*" * 10)
+    print("\nOUTPUT STATS\n")
 
     print(
         f"Onnx outputs error vs pytorch: {np.mean(np.abs(onnx_output[0] - pytorch_output))}"
@@ -123,7 +138,8 @@ def output_test() -> None:
     print("TFLite MAE:", abs_diff_t.mean())
     print("TFLite median abs diff:", np.median(abs_diff_t))
 
-    print("DONE")
+    print("DONE\n")
+    print("*" * 10)
 
 
 if __name__ == "__main__":
