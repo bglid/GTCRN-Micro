@@ -1,4 +1,4 @@
-## NOTE:
+## NOTE: TODOS: TCN STREAMING, TRALite STREAMING
 
 # DO NOT USE, NEEDS TO BE REFACTORED. RETURNING TO THIS
 """
@@ -263,12 +263,10 @@ class GTCN(nn.Module):
         super().__init__()
         # trying to stack into blocks to recreate dp
         blocks = []
-        self.dilation = 1  # going to increase this
+        d = 1
         for i in range(n_layers):
-            blocks.append(
-                TCN(channels=channels, kernel_size=kernel_size, dilation=dilation)
-            )
-            self.dilation *= dilation  # increases each block
+            blocks.append(TCN(channels=channels, kernel_size=kernel_size, dilation=d))
+            d *= dilation  # increases each block
 
         self.blocks = nn.ModuleList(blocks)
 
@@ -456,8 +454,8 @@ class StreamGTCRNMicro(nn.Module):
 
         self.encoder = StreamEncoder()
 
-        self.dptcn1 = GTCN(channels=16, n_layers=4, kernel_size=3, dilation=2)
-        self.dptcn2 = GTCN(channels=16, n_layers=4, kernel_size=3, dilation=2)
+        self.gtcn1 = GTCN(channels=16, n_layers=4, kernel_size=3, dilation=2)
+        self.gtcn2 = GTCN(channels=16, n_layers=4, kernel_size=3, dilation=2)
 
         self.decoder = StreamDecoder()
 
@@ -481,8 +479,8 @@ class StreamGTCRNMicro(nn.Module):
         # print(f"\nDEBUG\n-------\nConv cache:{conv_cache[0]}\n--------")
         feat, en_outs, conv_cache[0] = self.encoder(feat, conv_cache[0])
 
-        feat = self.dptcn1(feat)  # (B,16,T,33)
-        feat = self.dptcn2(feat)  # (B,16,T,33)
+        feat = self.gtcn1(feat)  # (B,16,T,33)
+        feat = self.gtcn2(feat)  # (B,16,T,33)
 
         # streaming change
         m_feat, conv_cache[1] = self.decoder(feat, en_outs, conv_cache[1])
@@ -499,11 +497,11 @@ if __name__ == "__main__":
     # load non-streaming model state dict and convert to streaming
     device = torch.device("cpu")
     model = GTCRNMicro().to(device).eval()
-    model.load_state_dict(
-        torch.load("./gtcrn_micro/ckpts/best_model_dns3.tar", map_location=device)[
-            "model"
-        ]
-    )
+    # model.load_state_dict(
+    #     torch.load("./gtcrn_micro/ckpts/best_model_dns3.tar", map_location=device)[
+    #         "model"
+    #     ]
+    # )
     stream_model = StreamGTCRNMicro().to(device).eval()
     convert_to_stream(stream_model, model)
 

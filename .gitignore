@@ -225,7 +225,6 @@ __marimo__/
 gtcrn_micro/utils/tflite_visualize.py
 gtcrn_micro/models/gtcrn_micro_lstm.py
 gtcrn_micro/models/gtcrn_micro_zero.py
-<<<<<<< HEAD
 gtcrn_micro/models/onnx/*.cpp
 gtcrn_micro/models/onnx/*.sh
 gtcrn_micro/models/onnx/test*

@@ -1,5 +1,8 @@
+# Original GTCRN author Xiaobin Rong: https://github.com/Xiaobin-Rong/gtcrn
+# Ideas for SFE lite and TRA lite were adapted from https://github.com/zerong7777-boop/gtcrn-light
 """
 GTCRN-Micro: MCU-focused rebuild of GTCRN
+Replacing DPGRNN approach with grouped TCNs (GTCN)
 """
 
 import numpy as np
@@ -68,6 +71,72 @@ class ERB(nn.Module):
         x_erb_low = x_erb[..., : self.erb_subband_1]
         x_erb_high = self.ierb_fc(x_erb[..., self.erb_subband_1 :])
         return torch.cat([x_erb_low, x_erb_high], dim=-1)
+
+
+# Light SFE, depthwise 1x3 to gather local subband context
+class SFE_Lite(nn.Module):
+    def __init__(self, in_channels=3) -> None:
+        super().__init__()
+        self.depth_conv = nn.Conv2d(
+            in_channels,
+            in_channels,
+            kernel_size=(1, 3),
+            padding=(0, 1),
+            groups=in_channels,
+            bias=False,
+        )
+
+    def forward(self, x):  # (B, 3, T, F)
+        return self.depth_conv(x)
+
+
+# Light TRA, no RNN -> adjusted with streaming in mind
+class TRALite(nn.Module):
+    def __init__(
+        self,
+        channels: int,
+        kernel: int = 3,
+    ) -> None:
+        super().__init__()
+        assert kernel >= 1
+        self.channels = channels
+        self.kernel = kernel
+        self.L = kernel - 1
+
+        self.depth_conv = nn.Conv1d(
+            channels,
+            channels,
+            kernel,
+            padding=0,
+            groups=channels,
+            bias=True,
+        )
+        self.point_conv = nn.Conv1d(channels, channels, 1, bias=True)
+        self.act = nn.Sigmoid()
+
+    def init_cache(self, B: int, device=None, dtype=None):
+        if self.L == 0:
+            return None
+        return torch.zeros(B, self.channels, self.L, device=device, dtype=dtype)
+
+    def forward(self, x, cache=None):
+        e = (x * x).mean(dim=3)
+
+        if self.L == 0:
+            y = self.depth_conv(e)
+            cache_output = None
+        else:
+            if cache is None:
+                cache = self.init_cache(x.size(0), device=x.device, dtype=x.dtype)
+
+            e_cat = torch.cat([cache, e], dim=2)
+            y = self.depth_conv(e_cat)
+            cache_output = e_cat[:, :, -self.L :].contiguous()
+
+        g = self.point_conv(y)
+        g = self.act(g).unsqueeze(-1)
+
+        return x * g, cache_output
 
 
 class ConvBlock(nn.Module):
@@ -148,6 +217,8 @@ class GTConvBlock(nn.Module):
         self.point_conv2 = conv_module(hidden_channels, in_channels // 2, 1)
         self.point_bn2 = nn.BatchNorm2d(in_channels // 2)
 
+        self.tra = TRALite(in_channels // 2)
+
     def shuffle(self, x1, x2):
         """x1, x2: (B,C,T,F)."""
         x = torch.stack([x1, x2], dim=1)
@@ -167,6 +238,8 @@ class GTConvBlock(nn.Module):
 
         h1 = self.depth_act(self.depth_bn(self.depth_conv(h1)))
         h1 = self.point_bn2(self.point_conv2(h1))
+
+        h1, tra_cache = self.tra(h1)
 
         # matching h1 for time shuffle
         T = x2.size(2)  # time size
@@ -419,6 +492,7 @@ class GTCRNMicro(nn.Module):
         super().__init__()
         self.erb = ERB(65, 64)
         # self.sfe = SFE(3, 1)
+        self.sfe = SFE_Lite(in_channels=3)
 
         self.encoder = Encoder()
 
@@ -441,6 +515,7 @@ class GTCRNMicro(nn.Module):
         feat = torch.stack([spec_mag, spec_real, spec_imag], dim=1)  # (B,3,T,257)
 
         feat = self.erb.bm(feat)  # (B,3,T,129)
+        feat = self.sfe(feat)  # sfe-lite (B, 3, T, 129)
 
         feat, en_outs = self.encoder(feat)
 
