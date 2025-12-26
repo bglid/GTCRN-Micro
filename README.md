@@ -95,6 +95,18 @@ uv sync
 
 ## Roadmap / to-dos 
 
+##### *Update 12/26/2025:*
+
+New model has been trained with a few architecture changes. The main changes are: Streaming-compatible dilation and padding, Lite versions of the TRA and SFE, which are quantizable, were added, and the GTCN section's dilation was fixed. Results for this model can be found in the [gtcrn_micro](./gtcrn_micro/README.md) directory.
+
+Next step is to use the created Streaming architecture to:
+ - 1. Test performance for the PyTorch streaming variant
+ - 2. Export the streaming variant to ONNX and test performance
+ - 3. Export ONNX streaming varian to TFLite and test performance.
+
+Once those are completed, this will move to MCU deployment tests, targeting the **ESP32-S3** first. 
+
+
 ##### *Update 12/19/2025:*
 
   Need to adjust the model architecture for better streaming performance. This model will be the one that goes through the full PyTorch $\rightarrow$ ONNX $\rightarrow$ TFLite conversion. Currently training said model that will support this hardware in streaming form. 

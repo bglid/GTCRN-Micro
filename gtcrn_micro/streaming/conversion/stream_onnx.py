@@ -1,5 +1,5 @@
-# Use for converting full pytorch model to ONNX
-# Mostly used for testing the viability of PyTorch ops -> ONNX -> TFLite
+# NOTE: TODO: Adjust this for streaming model and remove other torch util
+# converting streaming PyTorch Model -> ONNX
 import numpy as np
 import onnx
 import soundfile as sf
@@ -12,7 +12,7 @@ from torch import export
 from gtcrn_micro.models.gtcrn_micro import GTCRNMicro
 
 
-def torch2onnx(
+def stream2onnx(
     model: nn.Module,
     sample_input: NDArray[np.float64],
     model_name: str,
@@ -126,4 +126,4 @@ if __name__ == "__main__":
     )
 
     ckpt = "./gtcrn_micro/ckpts/best_model_dns3.tar"
-    torch2onnx(model, mix, model_name="gtcrn_micro", checkpoint=ckpt)
+    stream2onnx(model, mix, model_name="gtcrn_micro", checkpoint=ckpt)

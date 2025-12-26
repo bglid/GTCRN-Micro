@@ -4,18 +4,20 @@ set -euo pipefail
 
 # run from root
 ONNX_INPUT="gtcrn_micro/streaming/onnx/"
-ONNX_FILE=gtcrn_micro.onnx # testing lowered opset 16
+ONNX_FILE=gtcrn_micro.onnx
 OUTPUT_PATH="gtcrn_micro/streaming/tflite/"
 JSON_FILE=replace_gtcrn_micro.json
 CALIB_DATA="${OUTPUT_PATH}tflite_calibration.npy"
+
+# getting the scale for STD in -cind
 
 # firstly convert the model from PyTorch ->> ONNX
 if [ -e "$ONNX_INPUT$ONNX_FILE" ]; then
 	echo "$ONNX_INPUT$ONNX_FILE exists..."
 else
 	echo "$ONNX_INPUT$ONNX_FILE doesn't exist..."
-	echo "Running Torch -> ONNX conversion"
-	uv run -m gtcrn_micro.utils.torch_converter
+	echo "Running Streaming Torch -> ONNX conversion"
+	uv run -m gtcrn_micro.streaming.conversion.stream_onnx
 	echo "$ONNX_FILE created in $ONNX_INPUT"
 fi
 
@@ -36,7 +38,7 @@ uv run onnx2tf \
 	-cotof \
 	-oiqt \
 	-qt per-channel \
-	-cind "audio" "$CALIB_DATA" "[[[[0.5], [0.5]]]]" "[[[[0.0501392033], [0.0501392033]]]]" \
+	-cind "audio" "$CALIB_DATA" "[0.5]" "[[[[0.0501392033], [0.0501392033]]]]" \
 	-rtpo PReLU \
 	-osd \
 	-b 1 \
