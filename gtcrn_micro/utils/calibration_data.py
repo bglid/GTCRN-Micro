@@ -57,7 +57,7 @@ def wav_2_tensor(wav_path: Path) -> NDArray[np.float64]:
 def main():
     """Generate calibration data set by input wav."""
     # getting .wav files in directory
-    wavs = sorted(CALIB_DATA.glob("*.wav"))[:500]
+    wavs = sorted(CALIB_DATA.glob("*.wav"))[:300]
     data = []
     # appending the tensor stft to data list
     for i in wavs:
@@ -94,13 +94,17 @@ def main():
     print("**********")
 
     # clipping data for quantization
-    scale_low = np.percentile(data, 0.1)
-    scale_high = np.percentile(data, 99.9)
-    scale = max(abs(scale_low), abs(scale_high)) * 2.0
+    a = np.percentile(np.abs(data), 99.99)
+    scale = 2.0 * a * 1.06
+    # scale_low = np.percentile(data, 0.1)
+    # scale_high = np.percentile(data, 99.9)
+    # scale = max(abs(scale_low), abs(scale_high)) * 2.0
 
-    clipped_data = np.clip(data / scale + 0.5, 0.0, 1.0).astype(np.float32)
+    # clipped_data = np.clip(data / scale + 0.5, 0.0, 1.0).astype(np.float32)
 
-    np.save(OUTPUT, clipped_data)
+    data_norm = (data / scale) + 0.5
+    data_norm = np.clip(data_norm, 0.0, 1.0).astype(np.float32)
+    np.save(OUTPUT, data_norm)
     print(f"Scale = {scale}")
     print("**********\nCalibration info\n**********")
     x = np.load(OUTPUT)

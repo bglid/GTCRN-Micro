@@ -77,21 +77,25 @@ def output_test() -> None:
     interpreter = tf.lite.Interpreter(model_path=tflite_path)
     input_data1 = input.permute(0, 2, 3, 1).detach().numpy().astype(np.float32)
 
-    print("\n------------\nTFLite shape check:\n")
-    print(">>INPUTS<<")
-    for d in interpreter.get_input_details():
-        print(f"{d['name']}, shape: {d['shape']}\ndtype: {d['dtype']}")
-
-    for d in interpreter.get_output_details():
-        print("\n>>OUTPUTS<<")
-        print(f"{d['name']}, shape: {d['shape']}\ndtype: {d['dtype']}")
+    # print("\n------------\nTFLite shape check:\n")
+    # print(">>INPUTS<<")
+    # for d in interpreter.get_input_details():
+    #     print(f"{d['name']}, shape: {d['shape']}\ndtype: {d['dtype']}")
+    #
+    # for d in interpreter.get_output_details():
+    #     print("\n>>OUTPUTS<<")
+    #     print(f"{d['name']}, shape: {d['shape']}\ndtype: {d['dtype']}")
 
     input_details = interpreter.get_input_details()
     output_details = interpreter.get_output_details()
+
     interpreter.resize_tensor_input(
         input_details[0]["index"], input_data1.shape, strict=True
     )
     interpreter.allocate_tensors()
+
+    input_details = interpreter.get_input_details()
+    output_details = interpreter.get_output_details()
 
     print(
         "in quant:",
@@ -108,11 +112,6 @@ def output_test() -> None:
     in_scale, in_zero = input_details[0]["quantization"]
     out_scale, out_zero = output_details[0]["quantization"]
 
-    # interpreter.resize_tensor_input(
-    #     input_details[0]["index"], input_data1.shape, strict=True
-    # )
-    #
-    # interpreter.allocate_tensors()
     # setting input data to match the input details shape and size
     if input_details[0]["dtype"] == np.int8:
         q = np.round(input_data1 / in_scale + in_zero)
@@ -139,6 +138,16 @@ def output_test() -> None:
     interpreter.invoke()
 
     y_q = interpreter.get_tensor(output_details[0]["index"])
+
+    # comparing quant version of pytorch ouput
+    p = pytorch_output.astype(np.float32)
+    p_q = np.round(p / out_scale + out_zero)
+    p_q = np.clip(p_q, -128, 127).astype(np.int8)
+    print("pytorch out min/max:", p.min(), p.max())
+    print("pytorch out p1/p99:", np.percentile(p, 1), np.percentile(p, 99))
+
+    int8_mae = np.mean(np.abs(p_q.astype(np.int16) - y_q.astype(np.int16)))
+    print("INT8-domain MAE (counts):", int8_mae)
 
     print("\noutput shape: ", y_q.shape, "dtype: ", y_q.dtype)
     # dequantizing for comparison
