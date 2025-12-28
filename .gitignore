@@ -228,9 +228,11 @@ gtcrn_micro/models/gtcrn_micro_zero.py
 gtcrn_micro/streaming/onnx/*.cpp
 gtcrn_micro/streaming/onnx/*.sh
 gtcrn_micro/streaming/onnx/test*
+gtcrn_micro/streaming/tflite/*.tflite
+gtcrn_micro/streaming/tflite/variables
+# temporarily not tracking
+gtcrn_micro/streaming/onnx/
 
-# Until streaming is done:
 gtcrn_micro/models/onnx/
 gtcrn_micro/models/tflite
-gtcrn_micro/streaming/
 *.npy
