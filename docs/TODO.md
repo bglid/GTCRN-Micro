@@ -35,8 +35,9 @@
  - [x] Reimplement model replacing GRUs and for TFLM
  - [x] Make model adjustments to comply with **Torch $\rightarrow$ ONNX $\rightarrow$ TFLite $\rightarrow$ TFLM**
  - [x] Fix parameter replacement for JSON
- - [ ] Train new model
- - [ ] Setup Streaming converter for chosen architecture 
+ - [x] Train new model
+ - [x] Setup Streaming converter for chosen architecture 
+ - [ ] Test and report performance for streaming model in PyTorch and ONNX format
  - [ ] ~~Create QAT training setup to run on HPC~~
  - [ ] Add examples of how to run the model in main README
 
@@ -45,6 +46,7 @@
 ### Export and Quantization
 
  - [x] Convert PyTorch Adjusted model with TFLite Micro using PTQ 
+ - [ ] Report results of streaming TFLite model
  - [ ] Report measure of # of params and MMACs, ensure can fit on-device or adjust
  - [ ] Profile and measure accuracy of quanitzed model
 

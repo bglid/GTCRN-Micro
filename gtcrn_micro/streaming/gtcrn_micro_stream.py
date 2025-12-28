@@ -1,14 +1,21 @@
-# Original GTCRN author Xiaobin Rong: https://github.com/Xiaobin-Rong/gtcrn
-# Ideas for SFE lite and TRA lite were adapted from https://github.com/zerong7777-boop/gtcrn-light
 """
-GTCRN-Micro: MCU-focused rebuild of GTCRN
-Replacing DPGRNN approach with grouped TCNs (GTCN)
+GTCRN-Micro-Stream: MCU-focused rebuild of GTCRN, setup with streaming caching
 """
 
+import time
+
 import numpy as np
+import soundfile as sf
 import torch
 import torch.nn as nn
-from einops import rearrange
+from tqdm import tqdm
+
+from gtcrn_micro.models.gtcrn_micro import GTCRNMicro
+from gtcrn_micro.streaming.conversion.convert import convert_to_stream
+from gtcrn_micro.streaming.conversion.convolution import (
+    StreamConv2d,
+    StreamConvTranspose2d,
+)
 
 
 class ERB(nn.Module):
@@ -90,7 +97,6 @@ class SFE_Lite(nn.Module):
         return self.depth_conv(x)
 
 
-# Light TRA, no RNN -> adjusted with streaming in mind
 class TRALite(nn.Module):
     def __init__(
         self,
@@ -119,24 +125,33 @@ class TRALite(nn.Module):
             return None
         return torch.zeros(B, self.channels, self.L, device=device, dtype=dtype)
 
-    def forward(self, x, cache=None):
-        e = (x * x).mean(dim=3)
+    def forward(self, x, tra_cache):
+        e = (x * x).mean(dim=-1)
+
+        assert tra_cache is None or tra_cache.shape[1] == e.shape[1], (
+            tra_cache.shape,
+            e.shape,
+        )
+        assert tra_cache is None or tra_cache.shape[2] == self.L, (
+            tra_cache.shape,
+            self.L,
+        )
 
         if self.L == 0:
             y = self.depth_conv(e)
-            cache_output = None
+            tra_cache = None
         else:
-            if cache is None:
-                cache = self.init_cache(x.size(0), device=x.device, dtype=x.dtype)
+            if tra_cache is None:
+                tra_cache = self.init_cache(x.size(0), device=x.device, dtype=x.dtype)
 
-            e_cat = torch.cat([cache, e], dim=2)
+            e_cat = torch.cat([tra_cache, e], dim=2)
             y = self.depth_conv(e_cat)
-            cache_output = e_cat[:, :, -self.L :].contiguous()
+            tra_cache = e_cat[:, :, -self.L :].contiguous()
 
         g = self.point_conv(y)
         g = self.act(g).unsqueeze(-1)
 
-        return x * g, cache_output
+        return x * g, tra_cache
 
 
 class ConvBlock(nn.Module):
@@ -164,8 +179,8 @@ class ConvBlock(nn.Module):
         return self.act(self.bn(self.conv(x)))
 
 
-class GTConvBlock(nn.Module):
-    """Group Temporal Convolution"""
+class StreamGTConvBlock(nn.Module):
+    """Streaming Group Temporal Convolution"""
 
     def __init__(
         self,
@@ -181,15 +196,14 @@ class GTConvBlock(nn.Module):
         self.use_deconv = use_deconv
         self.pad_size = (kernel_size[0] - 1) * dilation[0]
         conv_module = nn.ConvTranspose2d if use_deconv else nn.Conv2d
+        stream_conv_module = StreamConvTranspose2d if use_deconv else StreamConv2d
 
-        # if removing SFE, remove * 3 because we don't have a kernel of size 3
         self.point_conv1 = conv_module(in_channels // 2, hidden_channels, 1)  # no SFE
-        # self.point_conv1 = conv_module(in_channels // 2 * 3, hidden_channels, 1)
         self.point_bn1 = nn.BatchNorm2d(hidden_channels)
         self.point_act = nn.PReLU()
 
         if use_deconv:
-            self.depth_conv = conv_module(
+            self.depth_conv = stream_conv_module(
                 hidden_channels,
                 hidden_channels,
                 kernel_size,
@@ -200,7 +214,7 @@ class GTConvBlock(nn.Module):
                 groups=1,  # fixing for conversion
             )
         else:
-            self.depth_conv = conv_module(
+            self.depth_conv = stream_conv_module(
                 hidden_channels,
                 hidden_channels,
                 kernel_size,
@@ -223,46 +237,41 @@ class GTConvBlock(nn.Module):
         """x1, x2: (B,C,T,F)."""
         x = torch.stack([x1, x2], dim=1)
         x = x.transpose(1, 2).contiguous()  # (B,C,2,T,F)
-        x = rearrange(x, "b c g t f -> b (c g) t f")  # (B,2C,T,F)
+        # adjusting for streaming
+        x = x.view(x.shape[0], -1, x.shape[3], x.shape[4])
+
         return x
 
-    def forward(self, x):
-        """x: (B, C, T, F)"""
-        x1, x2 = torch.chunk(x, chunks=2, dim=1)
+    def forward(self, x, conv_cache, tra_cache):
+        """
+        x: (B, C, T, F)
+        conv_cache: (B, C, (kT-1)*dT, F)
+        """
+        x1, x2 = x[:, : x.shape[1] // 2], x[:, x.shape[1] // 2 :]
 
-        # x1 = self.sfe(x1)
         h1 = self.point_act(self.point_bn1(self.point_conv1(x1)))
-        # guaranteeing matching shape of h in deconv
-        if not self.use_deconv:
-            h1 = nn.functional.pad(h1, [0, 0, self.pad_size, 0])
-
-        h1 = self.depth_act(self.depth_bn(self.depth_conv(h1)))
+        # streaming
+        h1, conv_cache = self.depth_conv(h1, conv_cache)
+        # bn + act on just h
+        h1 = self.depth_act(self.depth_bn(h1))
         h1 = self.point_bn2(self.point_conv2(h1))
 
-        h1, tra_cache = self.tra(h1)
-
-        # matching h1 for time shuffle
-        T = x2.size(2)  # time size
-        if h1.size(2) > T:
-            h1 = h1[:, :, :T, :]
-        elif h1.size(2) < T:
-            x2 = x2[:, :, : h1.size(2), :]
-
+        h1, tra_cache = self.tra(h1, tra_cache)
         x = self.shuffle(h1, x2)
 
-        return x
+        return x, conv_cache, tra_cache
 
 
-class TCN(nn.Module):
+class StreamTCN(nn.Module):
     """
-    Temporal Convolutional Block
-    2D convolution here
+    Streaming Temporal Convolutional Block.
     """
 
     def __init__(self, channels, kernel_size=3, dilation=1) -> None:
         super().__init__()
         # padding setup
-        self.pad = dilation * (kernel_size - 1)
+        # self.pad = dilation * (kernel_size - 1)
+        self.L = (kernel_size - 1) * dilation
 
         # conv1
         self.conv1 = nn.Conv2d(channels, channels, kernel_size=1, stride=1, padding=0)
@@ -270,7 +279,7 @@ class TCN(nn.Module):
         self.act1 = nn.PReLU()
 
         # dep temporal conv
-        self.conv2 = nn.Conv2d(
+        self.conv2 = StreamConv2d(
             channels,
             channels,
             kernel_size=(kernel_size, 1),
@@ -287,9 +296,10 @@ class TCN(nn.Module):
         self.bn3 = nn.BatchNorm2d(channels)
         self.act3 = nn.PReLU()
 
-    def forward(self, x):
+    def forward(self, x, tcn_cache):
         """
         x: (batch, seq length, input size, freq bins)
+        tcn_cache: (batch, seq length, input size: (k-1)*dilation, freq bins)
         """
 
         # we are going to use a residual connection within this block
@@ -298,52 +308,55 @@ class TCN(nn.Module):
         # first conv pass
         y1 = self.act1(self.bn1(self.conv1(x)))
 
-        # doing padding
-        y1 = nn.functional.pad(y1, [0, 0, self.pad, 0])
         # Conv2 pass
-        y2 = self.act2(self.bn2(self.conv2(y1)))
+        y2, tcn_cache = self.conv2(y1, tcn_cache)
+        y2 = self.act2(self.bn2(y2))
 
         # conv 3 but doing the activation with the resid
         y3 = self.bn3(self.conv3(y2))
 
         res = y3 + residual
-        return self.act3(res)
+        return self.act3(res), tcn_cache
 
 
-class GTCN(nn.Module):
+class StreamGTCN(nn.Module):
     """ """
 
     def __init__(self, channels, n_layers=4, kernel_size=3, dilation=2) -> None:
         super().__init__()
         # trying to stack into blocks to recreate dp
         blocks = []
-        # self.dilation = 1  # going to increase this
         d = 1
         for i in range(n_layers):
-            blocks.append(TCN(channels=channels, kernel_size=kernel_size, dilation=d))
-            # fixing dilation
+            blocks.append(
+                StreamTCN(channels=channels, kernel_size=kernel_size, dilation=d)
+            )
             d *= dilation  # increases each block
 
         self.blocks = nn.ModuleList(blocks)
 
-    def forward(self, x):
+    def forward(self, x, tcn_cache):
         """
         x: (B, C, T, F).
+        tcn_cache: (B, C, 2*d, F)
         """
-        for tcn in self.blocks:
-            x = tcn(x)
 
-        return x
+        # new cache to hold for each layer
+        new_cache = []
+        for tcn, cache in zip(self.blocks, tcn_cache):
+            x, cache = tcn(x, cache)
+            new_cache.append(cache)
+
+        return x, new_cache
 
 
-class Encoder(nn.Module):
+class StreamEncoder(nn.Module):
     def __init__(self):
         super().__init__()
         self.en_convs = nn.ModuleList(
             [
                 ConvBlock(
                     3,  # no SFE
-                    # 3 * 3,  # SFE
                     16,
                     (1, 5),
                     stride=(1, 2),
@@ -357,12 +370,11 @@ class Encoder(nn.Module):
                     (1, 5),
                     stride=(1, 2),
                     padding=(0, 2),
-                    groups=1,  # switched for conversion
-                    # groups=2,
+                    groups=1,
                     use_deconv=False,
                     is_last=False,
                 ),
-                GTConvBlock(
+                StreamGTConvBlock(
                     16,
                     16,
                     (3, 3),
@@ -371,65 +383,78 @@ class Encoder(nn.Module):
                     dilation=(1, 1),
                     use_deconv=False,
                 ),
-                GTConvBlock(
+                StreamGTConvBlock(
                     16,
                     16,
                     (3, 3),
                     stride=(1, 1),
                     padding=(0, 1),
                     dilation=(1, 1),
-                    # dilation=(2, 1), # switched for LiteRT inference
                     use_deconv=False,
                 ),
-                GTConvBlock(
+                StreamGTConvBlock(
                     16,
                     16,
                     (3, 3),
                     stride=(1, 1),
                     padding=(0, 1),
                     dilation=(1, 1),
-                    # dilation=(5, 1), # switched for LiteRT inference
                     use_deconv=False,
                 ),
             ]
         )
 
-    def forward(self, x):
+    def forward(self, x, conv_cache, tra_cache):
         en_outs = []
-        for i in range(len(self.en_convs)):
+        # just passing as normal through first two conv blocks
+        for i in range(2):
             x = self.en_convs[i](x)
             en_outs.append(x)
-        return x, en_outs
+
+        # streaming forward pass for Streaming blocks
+        # NOTE: due to dilation quant restrictions, need to make smaller dilation caches
+        x, conv_cache[:, :, :2, :], tra_cache[0] = self.en_convs[2](
+            x, conv_cache[:, :, :2, :], tra_cache[0]
+        )
+        en_outs.append(x)
+
+        x, conv_cache[:, :, 2:4, :], tra_cache[1] = self.en_convs[3](
+            x, conv_cache[:, :, 2:4, :], tra_cache[1]
+        )
+        en_outs.append(x)
+
+        x, conv_cache[:, :, 4:6, :], tra_cache[2] = self.en_convs[4](
+            x, conv_cache[:, :, 4:6, :], tra_cache[2]
+        )
+        en_outs.append(x)
+
+        return x, en_outs, conv_cache, tra_cache
 
 
-class Decoder(nn.Module):
+class StreamDecoder(nn.Module):
     def __init__(self):
         super().__init__()
         self.de_convs = nn.ModuleList(
             [
-                GTConvBlock(
+                StreamGTConvBlock(
+                    16,
+                    16,
+                    (3, 3),
+                    stride=(1, 1),
+                    padding=(0, 1),  # causual padding!
+                    dilation=(1, 1),
+                    use_deconv=True,
+                ),
+                StreamGTConvBlock(
                     16,
                     16,
                     (3, 3),
                     stride=(1, 1),
                     padding=(0, 1),
                     dilation=(1, 1),
-                    # padding=(2 * 5, 1), # switched for LiteRT inference
-                    # dilation=(5, 1),
                     use_deconv=True,
                 ),
-                GTConvBlock(
-                    16,
-                    16,
-                    (3, 3),
-                    stride=(1, 1),
-                    padding=(0, 1),
-                    dilation=(1, 1),
-                    # switched for LiteRT inference
-                    # dilation=(2, 1),
-                    use_deconv=True,
-                ),
-                GTConvBlock(
+                StreamGTConvBlock(
                     16,
                     16,
                     (3, 3),
@@ -445,7 +470,6 @@ class Decoder(nn.Module):
                     stride=(1, 2),
                     padding=(0, 2),
                     groups=1,  # for TFLM conversion
-                    # groups=2,
                     use_deconv=True,
                     is_last=False,
                 ),
@@ -461,12 +485,24 @@ class Decoder(nn.Module):
             ]
         )
 
-    def forward(self, x, en_outs):
-        N_layers = len(self.de_convs)
-        for i in range(N_layers):
-            # print(x.shape)
-            x = self.de_convs[i](x + en_outs[N_layers - 1 - i])
-        return x
+    def forward(self, x, en_outs, conv_cache, tra_cache):
+        # decoding the cache backwards
+        x, conv_cache[:, :, 4:6, :], tra_cache[0] = self.de_convs[0](
+            x + en_outs[4], conv_cache[:, :, 4:6, :], tra_cache[0]
+        )
+
+        x, conv_cache[:, :, 2:4, :], tra_cache[1] = self.de_convs[1](
+            x + en_outs[3], conv_cache[:, :, 2:4, :], tra_cache[1]
+        )
+
+        x, conv_cache[:, :, :2, :], tra_cache[2] = self.de_convs[2](
+            x + en_outs[2], conv_cache[:, :, :2, :], tra_cache[2]
+        )
+
+        # iter as normal through last two conv blocks
+        for i in range(3, 5):
+            x = self.de_convs[i](x + en_outs[4 - i])
+        return x, conv_cache, tra_cache
 
 
 class Mask(nn.Module):
@@ -482,30 +518,30 @@ class Mask(nn.Module):
         return s
 
 
-class GTCRNMicro(nn.Module):
+class StreamGTCRNMicro(nn.Module):
     def __init__(
         self,
-        n_fft=512,
+        n_fft=512,  # just for config.yaml
         hop_len=256,
         win_len=512,
     ):
         super().__init__()
         self.erb = ERB(65, 64)
-        # self.sfe = SFE(3, 1)
         self.sfe = SFE_Lite(in_channels=3)
 
-        self.encoder = Encoder()
+        self.encoder = StreamEncoder()
 
-        self.gtcn1 = GTCN(channels=16, n_layers=4, kernel_size=3, dilation=2)
-        self.gtcn2 = GTCN(channels=16, n_layers=4, kernel_size=3, dilation=2)
+        self.gtcn1 = StreamGTCN(channels=16, n_layers=4, kernel_size=3, dilation=2)
+        self.gtcn2 = StreamGTCN(channels=16, n_layers=4, kernel_size=3, dilation=2)
 
-        self.decoder = Decoder()
+        self.decoder = StreamDecoder()
 
         self.mask = Mask()
 
-    def forward(self, spec):
+    def forward(self, spec, conv_cache, tra_cache, tcn_cache):
         """
         spec: (B, F, T, 2)
+        conv_cache: [en_cache, de_cache], (2, B, C, 8(kT-1), F) = (2, 1, 16, 16, 33)
         """
         spec_ref = spec  # (B,F,T,2)
 
@@ -517,54 +553,107 @@ class GTCRNMicro(nn.Module):
         feat = self.erb.bm(feat)  # (B,3,T,129)
         feat = self.sfe(feat)  # sfe-lite (B, 3, T, 129)
 
-        feat, en_outs = self.encoder(feat)
+        # streaming change
+        feat, en_outs, conv_cache[0], tra_cache[0] = self.encoder(
+            feat, conv_cache[0], tra_cache[0]
+        )
 
-        feat = self.gtcn1(feat)  # (B,16,T,33)
-        feat = self.gtcn2(feat)  # (B,16,T,33)
+        feat, tcn_cache[0] = self.gtcn1(feat, tcn_cache[0])  # (B,16,T,33)
+        feat, tcn_cache[1] = self.gtcn2(feat, tcn_cache[1])  # (B,16,T,33)
 
-        m_feat = self.decoder(feat, en_outs)
+        # streaming change
+        m_feat, conv_cache[1], tra_cache[1] = self.decoder(
+            feat, en_outs, conv_cache[1], tra_cache[1]
+        )
 
         m = self.erb.bs(m_feat)
 
         spec_enh = self.mask(m, spec_ref.permute(0, 3, 2, 1))  # (B,2,T,F)
         spec_enh = spec_enh.permute(0, 3, 2, 1)  # (B,F,T,2)
 
-        return spec_enh
+        return spec_enh, conv_cache, tra_cache, tcn_cache
 
 
 if __name__ == "__main__":
-    model = GTCRNMicro().eval()
-
-    """complexity count"""
-    from ptflops import get_model_complexity_info
-
-    flops, params = get_model_complexity_info(
-        model, (257, 63, 2), as_strings=True, print_per_layer_stat=True, verbose=True
+    # load non-streaming model state dict and convert to streaming
+    device = torch.device("cpu")
+    model = GTCRNMicro().to(device).eval()
+    model.load_state_dict(
+        torch.load("./gtcrn_micro/ckpts/best_model_dns3.tar", map_location=device)[
+            "model"
+        ]
     )
-    print(flops, params)
+    stream_model = StreamGTCRNMicro().to(device).eval()
+    convert_to_stream(stream_model, model)
 
-    """causality check"""
-    a = torch.randn(1, 16000)
-    b = torch.randn(1, 16000)
-    c = torch.randn(1, 16000)
-    x1 = torch.cat([a, b], dim=1)
-    x2 = torch.cat([a, c], dim=1)
-
-    x1 = torch.stft(
-        x1, 512, 256, 512, torch.hann_window(512).pow(0.5), return_complex=False
+    # offline inference
+    print("\nOffline inference")
+    x = torch.from_numpy(
+        sf.read(
+            "./gtcrn_micro/data/DNS3/noisy_blind_testset_v3_challenge_withSNR_16k/ms_realrec_emotional_female_SNR_17.74dB_headset_A2AHXGFXPG6ZSR_Water_far_Laughter_12.wav",
+            dtype="float32",
+        )[0]
     )
-    x2 = torch.stft(
-        x2, 512, 256, 512, torch.hann_window(512).pow(0.5), return_complex=False
+    x = torch.stft(
+        x, 512, 256, 512, torch.hann_window(512).pow(0.5), return_complex=False
+    )[None]
+
+    # adjusted for torch update with return_complex=False
+    with torch.no_grad():
+        y = model(x)
+
+    # for time domain comparison
+    enhanced = torch.view_as_complex(y.contiguous())
+    enhanced = torch.istft(
+        enhanced, 512, 256, 512, torch.hann_window(512).pow(0.5), return_complex=False
     )
-    y1 = model(x1)[0]
-    y2 = model(x2)[0]
+    # enhanced = enhanced.squeeze(0).cpu().numpy()
+    # # sf.write("./gtcrn_micro/streaming/sample_wavs/enh.wav", y.squeeze(), 16000)
+    # sf.write("./gtcrn_micro/streaming/sample_wavs/enh.wav", enhanced, 16000)
 
-    # apparently newer torch wants complex
-    y1 = torch.view_as_complex(y1.contiguous())
-    y2 = torch.view_as_complex(y2.contiguous())
+    # --------------
+    # streaming inference
+    print("\nStreaming inference")
+    # conv_cache = torch.zeros(2, 1, 16, 16, 33).to(device)
+    conv_cache = torch.zeros(2, 1, 16, 6, 33).to(device)
+    tra_cache = torch.zeros(2, 3, 1, 8, 2).to(device)
+    tcn_cache = [
+        [torch.zeros(1, 16, 2 * d, 33, device=device) for d in [1, 2, 4, 8]],
+        [torch.zeros(1, 16, 2 * d, 33, device=device) for d in [1, 2, 4, 8]],
+    ]
+    ys = []
+    times = []
+    for i in tqdm(range(x.shape[2])):
+        xi = x[:, :, i : i + 1]
+        tic = time.perf_counter()
+        with torch.no_grad():
+            yi, conv_cache, tra_cache, tcn_cache = stream_model(
+                xi, conv_cache, tra_cache, tcn_cache
+            )
+        toc = time.perf_counter()
+        times.append((toc - tic) * 1000)
+        ys.append(yi)
+    ys = torch.cat(ys, dim=2)
 
-    y1 = torch.istft(y1, 512, 256, 512, torch.hann_window(512).pow(0.5))
-    y2 = torch.istft(y2, 512, 256, 512, torch.hann_window(512).pow(0.5))
+    enhanced_stream = torch.view_as_complex(ys.contiguous())
+    enhanced_stream = torch.istft(
+        enhanced_stream,
+        512,
+        256,
+        512,
+        torch.hann_window(512).pow(0.5),
+        return_complex=False,
+    )
+    # enhanced_stream = enhanced_stream.squeeze(0).cpu().numpy()
+    # sf.write(
+    #     "./gtcrn_micro/streaming/sample_wavs/enh.wav", enhanced_stream.squeeze(), 16000
+    # )
+    print(
+        ">>> inference time: mean: {:.1f}ms, max: {:.1f}ms, min: {:.1f}ms".format(
+            sum(times) / len(times), max(times), min(times)
+        )
+    )
+    print(">>> Streaming error, FREQ domain:", np.abs(y - ys).max())
+    print(">>> Streaming error, TIME domain:", np.abs(enhanced - enhanced_stream).max())
 
-    print((y1[: 16000 - 256 * 2] - y2[: 16000 - 256 * 2]).abs().max())
-    print((y1[16000:] - y2[16000:]).abs().max())
+    # --------------

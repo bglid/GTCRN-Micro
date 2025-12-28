@@ -1,3 +1,5 @@
+# NOTE: TODO: Adjust this for streaming model and remove other torch util
+# converting streaming PyTorch Model -> ONNX
 import numpy as np
 import onnx
 import soundfile as sf
@@ -10,10 +12,9 @@ from torch import export
 from gtcrn_micro.models.gtcrn_micro import GTCRNMicro
 
 
-def torch2onnx(
+def stream2onnx(
     model: nn.Module,
     sample_input: NDArray[np.float64],
-    time_chunk: int,
     model_name: str,
     checkpoint: str,
 ) -> None:
@@ -22,36 +23,41 @@ def torch2onnx(
     Args:
         model (nn.Module): Model to convert to onnx
         sample_input (NDArray[np.float64]): Sample small input for conversion
-        time_chunk (int): Time in samples for the amount of audio you want for your input
         model_name (str): Name of onnx file that will be saved - "name".onnx
         checkpoint (str): Path to the model checkpoint for conversion
     """
-    ONNX_PATH = "./gtcrn_micro/models/onnx/"
+    ONNX_PATH = "./gtcrn_micro/streaming/onnx/"
 
     # loading up model checkpoints
-    ckpt = torch.load(
-        checkpoint,
-        map_location="cpu",
-    )
+    try:
+        ckpt = torch.load(
+            checkpoint,
+            map_location="cpu",
+        )
 
-    state = (
-        ckpt.get("state_dict", None)
-        or ckpt.get("model_state_dict", None)
-        or ckpt.get("model", None)
-        or ckpt
-    )
+        state = (
+            ckpt.get("state_dict", None)
+            or ckpt.get("model_state_dict", None)
+            or ckpt.get("model", None)
+            or ckpt
+        )
 
-    # Handling if ckpt was saved from DDP and has module prefixes
-    if any(k.startswith("module.") for k in state.keys()):
-        state = {k.removeprefix("module."): v for k, v in state.items()}
+        # Handling if ckpt was saved from DDP and has module prefixes
+        if any(k.startswith("module.") for k in state.keys()):
+            state = {k.removeprefix("module."): v for k, v in state.items()}
 
-    # print state dict info
-    missing, unexpected = model.load_state_dict(state, strict=False)
-    print("-" * 20)
-    print(f"\nLoaded checkpoint: {checkpoint}")
-    print(f"\tmissing keys: {missing}")
-    print(f"\tunexpected keys: {unexpected}")
-    assert not missing and not unexpected, "State dict mismatch – check model config!"
+        # print state dict info
+        missing, unexpected = model.load_state_dict(state, strict=False)
+        print("-" * 20)
+        print(f"\nLoaded checkpoint: {checkpoint}")
+        print(f"\tmissing keys: {missing}")
+        print(f"\tunexpected keys: {unexpected}")
+        assert not missing and not unexpected, (
+            "State dict mismatch – check model config!"
+        )
+    except Exception as e:
+        print("No checkpoint at:", checkpoint)
+        print("Exception: ", e)
 
     # explicitly setting model to eval in function
     model.eval()
@@ -74,10 +80,6 @@ def torch2onnx(
         y = model(input[None])[0]
     print("Forward works!", tuple(y.shape) if hasattr(y, "shape") else type(y), "\n")
 
-    # making a smaller input for conversion
-    # input_small = input[:, :time_chunk, :]
-    # input_small = input[:, :time_chunk, :]
-    # print(f"input small size: {input_small.shape}")
     print(f"input shape: {input.shape}")
 
     # test export from torch
@@ -90,7 +92,7 @@ def torch2onnx(
     print("starting onnx export:")
     torch.onnx.export(
         model,
-        (input[None]),  # Exporting with small input
+        (input[None],),  # Exporting with small input
         f"{ONNX_PATH}{model_name}.onnx",
         opset_version=16,  # Lowerin opset for LN
         dynamo=False,
@@ -124,5 +126,4 @@ if __name__ == "__main__":
     )
 
     ckpt = "./gtcrn_micro/ckpts/best_model_dns3.tar"
-    # converting model, 1 second time chunk
-    torch2onnx(model, mix, time_chunk=63, model_name="gtcrn_micro", checkpoint=ckpt)
+    stream2onnx(model, mix, model_name="gtcrn_micro", checkpoint=ckpt)

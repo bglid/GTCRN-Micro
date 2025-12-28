@@ -44,6 +44,7 @@ def output_test() -> None:
         state = {k.removeprefix("module."): v for k, v in state.items()}
 
     # print state dict info
+    # NOTE: not loading state-dict until new model is trained
     missing, unexpected = model.load_state_dict(state, strict=False)
     print("-" * 20)
     print(f"\tmissing keys: {missing}")
@@ -58,7 +59,9 @@ def output_test() -> None:
     print("\npytorch output done")
 
     # check onnx output
-    session = onnxruntime.InferenceSession("./gtcrn_micro/models/onnx/gtcrn_micro.onnx")
+    session = onnxruntime.InferenceSession(
+        "./gtcrn_micro/streaming/onnx/gtcrn_micro.onnx"
+    )
     onnx_output = session.run(
         ["mask"],
         {
@@ -69,25 +72,65 @@ def output_test() -> None:
 
     # TFLite
     ## Load tflite model and compare outputs
-    tflite_path = "./gtcrn_micro/models/tflite/gtcrn_micro_full_integer_quant.tflite"
+    tflite_path = "./gtcrn_micro/streaming/tflite/gtcrn_micro_full_integer_quant.tflite"
+    # tflite_path = "./gtcrn_micro/streaming/tflite/gtcrn_micro_float32.tflite"
     interpreter = tf.lite.Interpreter(model_path=tflite_path)
+    input_data1 = input.permute(0, 2, 3, 1).detach().numpy().astype(np.float32)
+
+    # print("\n------------\nTFLite shape check:\n")
+    # print(">>INPUTS<<")
+    # for d in interpreter.get_input_details():
+    #     print(f"{d['name']}, shape: {d['shape']}\ndtype: {d['dtype']}")
+    #
+    # for d in interpreter.get_output_details():
+    #     print("\n>>OUTPUTS<<")
+    #     print(f"{d['name']}, shape: {d['shape']}\ndtype: {d['dtype']}")
 
     input_details = interpreter.get_input_details()
     output_details = interpreter.get_output_details()
 
-    # fix input scale
-    in_scale, in_zero = input_details[0]["quantization"]
-    out_scale, out_zero = output_details[0]["quantization"]
-    input_data1 = input.permute(0, 2, 3, 1).detach().numpy().astype(np.float32)
-
     interpreter.resize_tensor_input(
         input_details[0]["index"], input_data1.shape, strict=True
     )
-
     interpreter.allocate_tensors()
+
+    input_details = interpreter.get_input_details()
+    output_details = interpreter.get_output_details()
+
+    print(
+        "in quant:",
+        input_details[0]["quantization"],
+        input_details[0]["quantization_parameters"],
+    )
+    print(
+        "out quant:",
+        output_details[0]["quantization"],
+        output_details[0]["quantization_parameters"],
+    )
+
+    # fix input scale
+    in_scale, in_zero = input_details[0]["quantization"]
+    out_scale, out_zero = output_details[0]["quantization"]
+
     # setting input data to match the input details shape and size
     if input_details[0]["dtype"] == np.int8:
-        x_q = np.round(input_data1 / in_scale + in_zero).astype(np.int8)
+        q = np.round(input_data1 / in_scale + in_zero)
+
+        sat_lo = np.mean(q < -128)
+        sat_hi = np.mean(q > 127)
+        print(f"saturation lo%: {sat_lo * 100:.4f}  hi%: {sat_hi * 100:.4f}")
+
+        float_min = input_data1.min()
+        float_max = input_data1.max()
+        q_float_min = (-128 - in_zero) * in_scale
+        q_float_max = (127 - in_zero) * in_scale
+        print("float min/max:", float_min, float_max)
+        print("quant float range:", q_float_min, q_float_max)
+
+        print("pre-clip q min/max:", q.min(), q.max())
+        q = np.clip(q, -128, 127)
+        x_q = q.astype(np.int8)
+        # x_q = np.round(input_data1 / in_scale + in_zero).astype(np.int8)
     else:
         x_q = input_data1
 
@@ -96,13 +139,28 @@ def output_test() -> None:
 
     y_q = interpreter.get_tensor(output_details[0]["index"])
 
+    # comparing quant version of pytorch ouput
+    p = pytorch_output.astype(np.float32)
+    p_q = np.round(p / out_scale + out_zero)
+    p_q = np.clip(p_q, -128, 127).astype(np.int8)
+    print("pytorch out min/max:", p.min(), p.max())
+    print("pytorch out p1/p99:", np.percentile(p, 1), np.percentile(p, 99))
+
+    int8_mae = np.mean(np.abs(p_q.astype(np.int16) - y_q.astype(np.int16)))
+    print("INT8-domain MAE (counts):", int8_mae)
+
+    print("\noutput shape: ", y_q.shape, "dtype: ", y_q.dtype)
     # dequantizing for comparison
     if output_details[0]["dtype"] == np.int8:
         tflite_output = (y_q.astype(np.float32) - out_zero) * out_scale
     else:
         tflite_output = y_q.astype(np.float32)
 
-    print("\nTFLite output done")
+    print("\n-------------")
+
+    print("\nTFLite output done\n")
+    print("*" * 10)
+    print("\nOUTPUT STATS\n")
 
     print(
         f"Onnx outputs error vs pytorch: {np.mean(np.abs(onnx_output[0] - pytorch_output))}"
@@ -123,7 +181,8 @@ def output_test() -> None:
     print("TFLite MAE:", abs_diff_t.mean())
     print("TFLite median abs diff:", np.median(abs_diff_t))
 
-    print("DONE")
+    print("DONE\n")
+    print("*" * 10)
 
 
 if __name__ == "__main__":

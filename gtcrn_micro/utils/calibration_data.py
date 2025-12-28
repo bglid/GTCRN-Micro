@@ -12,7 +12,8 @@ from numpy.typing import NDArray
 CALIB_DATA = Path(
     "./gtcrn_micro/data/DNS3/noisy_blind_testset_v3_challenge_withSNR_16k/"
 )
-OUTPUT = Path("./gtcrn_micro/models/tflite/tflite_calibration.npy")
+OUTPUT = Path("./gtcrn_micro/streaming/tflite/tflite_calibration.npy")
+SCALE_TXT = Path("./gtcrn_micro/streaming/tflite/calib_scale.txt")
 
 # CONSTANTS FOR STFT INFO
 N_FFT = 512
@@ -47,15 +48,16 @@ def wav_2_tensor(wav_path: Path) -> NDArray[np.float64]:
     )
 
     # specifically for the tf model conversion we need to transpose the inputs
-    stft_np = stft.numpy().transpose(1, 2, 0)
+    # stft_np = stft.numpy().transpose(1, 2, 0)
+    # fixing for TF NHWC
+    stft_np = stft.numpy().transpose(1, 2, 0)  # -> (T, F, 2)
     return stft_np
 
 
 def main():
     """Generate calibration data set by input wav."""
     # getting .wav files in directory
-    # only taking 32 samples for now
-    wavs = sorted(CALIB_DATA.glob("*.wav"))[:32]
+    wavs = sorted(CALIB_DATA.glob("*.wav"))[:300]
     data = []
     # appending the tensor stft to data list
     for i in wavs:
@@ -70,8 +72,10 @@ def main():
     # getting every tensor and checking it's shapes
     for tsr in data:
         T, C, F = tsr.shape
+
+        assert C == 2, tsr.shape
         if T >= max_frames:
-            tsr = tsr[:max_frames]
+            tsr = tsr[:max_frames, :, :]
         # else do padding
         else:
             pad = np.zeros((max_frames - T, C, F), dtype=tsr.dtype)
@@ -80,10 +84,38 @@ def main():
         padding.append(tsr)
 
     # reconstructing the now padded data (if needed)
-    data = np.stack(padding, axis=0)
+    data = np.stack(padding, axis=0).astype(np.float32)
 
-    print(f"**********\nData shape: {data.shape}\n**********")
-    np.save(OUTPUT, data.astype("float32"))
+    print("**********\nData info\n**********")
+    # debugging:
+    print(data.shape, data.dtype)
+    print(f"Min/max: {data.min(), data.max()}")
+    print(f"po1/p99: {np.percentile(data, 1), np.percentile(data, 99)}")
+    print("**********")
+
+    # clipping data for quantization
+    a = np.percentile(np.abs(data), 99.99)
+    scale = 2.0 * a * 1.06
+    # scale_low = np.percentile(data, 0.1)
+    # scale_high = np.percentile(data, 99.9)
+    # scale = max(abs(scale_low), abs(scale_high)) * 2.0
+
+    # clipped_data = np.clip(data / scale + 0.5, 0.0, 1.0).astype(np.float32)
+
+    data_norm = (data / scale) + 0.5
+    data_norm = np.clip(data_norm, 0.0, 1.0).astype(np.float32)
+    np.save(OUTPUT, data_norm)
+    print(f"Scale = {scale}")
+    print("**********\nCalibration info\n**********")
+    x = np.load(OUTPUT)
+    print(f"Shape = {x.shape}")
+    print(f"Min/max: {x.min(), x.max()}")
+    print(f"po1/p99: {np.percentile(x, 1), np.percentile(x, 99)}")
+    print("**********")
+
+    # writing the scale to use in the onnx2tf conversion
+    SCALE_TXT.write_text(f"{scale}\n")
+    print(f"Wrote the scale to {SCALE_TXT}: {scale}\n")
 
 
 if __name__ == "__main__":

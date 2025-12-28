@@ -95,9 +95,21 @@ uv sync
 
 ## Roadmap / to-dos 
 
-##### *Update 12/10/2025:*
+##### *Update 12/26/2025:*
 
-Renaming the model architectures for clarity. Going forward, the model architecture targeting the **ESP32-S3** will be called `gtcrn_micro_s3`. This model will be the one that goes through the full PyTorch $\rightarrow$ ONNX $\rightarrow$ TFLite conversion. Currently training a model that will support this hardware in streaming form. 
+New model has been trained with a few architecture changes. The main changes are: Streaming-compatible dilation and padding, Lite versions of the TRA and SFE, which are quantizable, were added, and the GTCN section's dilation was fixed. Results for this model can be found in the [gtcrn_micro](./gtcrn_micro/README.md) directory.
+
+Next step is to use the created Streaming architecture to:
+ - 1. Test performance for the PyTorch streaming variant
+ - 2. Export the streaming variant to ONNX and test performance
+ - 3. Export ONNX streaming varian to TFLite and test performance.
+
+Once those are completed, this will move to MCU deployment tests, targeting the **ESP32-S3** first. 
+
+
+##### *Update 12/19/2025:*
+
+  Need to adjust the model architecture for better streaming performance. This model will be the one that goes through the full PyTorch $\rightarrow$ ONNX $\rightarrow$ TFLite conversion. Currently training said model that will support this hardware in streaming form. 
 
 Future goals are to attempt to skip the `tflite` conversion and use STM32CubeAI to deploy.
 
@@ -108,6 +120,7 @@ Future goals are to attempt to skip the `tflite` conversion and use STM32CubeAI 
 
 ###### 1. The original model this is based off of is [GTCRN: A Speech Enhancement Model Requiring Ultralow Computational Resources](https://ieeexplore.ieee.org/document/10448310), leveraging the implementation code at [GTCRN](https://github.com/Xiaobin-Rong/gtcrn). A notable amount of the setup to train and change the model was based off of the same authors project [SEtrain](https://github.com/Xiaobin-Rong/SEtrain/tree/plus). They have some seriously impressive SE research! Please check out their research and throw some of their work a star!
 ###### 2. The project also requires moving from **PyTorch $\rightarrow$ ONNX $\rightarrow$ .tflite** to run inference on ESP32s. None of this could have been possible without the direct help and work of [PINTO0309](https://github.com/PINTO0309) & their awesome project [onnx2tf](https://github.com/PINTO0309/onnx2tf). I highly recommend you check out their work if you are reading this and want to do a similar project. Please consider throwing some of their work a star!
+###### 3. The SFE and TRA were changed following an implementation in [gtcrn-light](https://github.com/zerong7777-boop/gtcrn-light). Their implementation managed to preserve these blocks functionality without the GRUs, making it representable in TFLM without an external CPU. Their implementation is great, and I recommend you check it out. 
 - - - 
 
 *This project would not have been possible without their efforts. Please consider citing them and giving them a star first before this project's!* 
